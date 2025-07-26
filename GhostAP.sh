@@ -54,6 +54,8 @@ declare -A DEFAULTS=(
     [PROXY_TYPE]=""
     [PROXY_USER]=""
     [PROXY_PASS]=""
+    [CLONE]=false
+    [CLONE_SSID]=""
 )
 
 declare -A ARG
@@ -235,6 +237,54 @@ get_internet_interfaces() {
 
 get_network_interfaces() {
     ip -o link show 2>/dev/null | awk -F': ' '/^[0-9]+:/ && !/lo:/ {gsub(/@.*/, "", $2); print $2}' | grep -v "^$" | sort -u || true
+}
+
+get_wifi_ssids() {
+  local interface=${1:-"${DEFAULTS[INTERFACE]}"}  # Default interface wlan0, can be overridden by argument
+  local ssids=()
+  
+  # Scan for Wi-Fi networks and extract SSIDs
+  while IFS= read -r line; do
+    # Skip empty SSIDs
+    [[ -n "$line" ]] && ssids+=("$line")
+  done < <(sudo iwlist "$interface" scan | grep 'ESSID:' | sed -e 's/.*ESSID:"\(.*\)"/\1/')
+
+  echo "${ssids[@]}"
+}
+
+get_ap_info() {
+  local target_ssid="$1"
+  local interface=${2:-"${DEFAULTS[INTERFACE]}"}  # Default interface wlan0, can be overridden by argument
+  local ap_info=()
+
+  # Scan and parse output
+  # Each cell starts with "Cell XX - Address: MAC"
+  # Then lines with Channel and ESSID
+  sudo iwlist "$interface" scan | awk -v ssid="$target_ssid" '
+    BEGIN { found=0; }
+    /Cell [0-9]+ - Address: / {
+      mac = $5;
+      found=0;
+      channel="";
+      essid="";
+    }
+    /Channel:/ {
+      channel=$2;
+    }
+    /ESSID:/ {
+      gsub(/"/, "", $1);
+      essid=substr($0, index($0,$1)+length($1)+1);
+      gsub(/"/, "", essid);
+      if (essid == ssid) {
+        print essid, channel, mac;
+        found=1;
+      }
+    }
+  ' | while read -r ssid channel mac; do
+    ap_info=("$ssid" "$channel" "$mac")
+    # Output the array elements separated by space
+    echo "${ap_info[@]}"
+  done
 }
 
 select_from_list() {
@@ -1040,6 +1090,48 @@ EOF
     log "Proxy routing enabled via redsocks"
 }
 
+configure_clone(){
+    if [[ ${INTERACTIVE_MODE} == true ]]; then
+        if [[ -z "${ARG[CLONE]}" ]]; then
+            read -r -p "Enable interface cloning? (y/N): " enable
+            if [[ "${enable}" =~ ^[Yy]$ ]]; then
+                DEFAULTS[CLONE]=true
+                log "Interface cloning enabled."
+            elif [[ "${enable}" =~ ^[Nn]$ ]]; then
+                DEFAULTS[CLONE]=false
+            fi
+        fi
+    fi
+
+    [[ "${DEFAULTS[CLONE]}" == true ]] || return 0
+    log "Configuring interface cloning..."
+
+    if [[ "${INTERACTIVE_MODE}" == true ]]; then
+        if [[ -z "${ARG[CLONE_SSID]}" ]]; then
+            read -r -a wifi_aps < <(get_wifi_aps "${INTERFACE}")
+            DEFAULTS[CLONE_SSID]=$(select_from_list "Select Access Point for cloning interface:" "${wifi_aps[@]}")
+            log "Selected Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
+        else
+            log "Using specified Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
+        fi
+    elif [[ -n "${ARG[CLONE_SSID]}" ]]; then
+        log "Using specified Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
+    else
+        log "No Access Point specified for cloning"
+    fi
+
+    [[ -n "${DEFAULTS[CLONE_SSID]}" ]] || {
+        warn "No Access Point specified for cloning, skipping interface cloning"
+        DEFAULTS[CLONE]=false
+        return 0
+    }
+
+    read -r -a result < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${INTERFACE}")
+    DEFAULTS[SSID]="${result[0]}"
+    DEFAULTS[CHANNEL]="${result[1]}"
+    DEFAULTS[MAC]="${result[2]}"
+}
+
 start_services() {
     log "Starting services..."
     
@@ -1333,6 +1425,19 @@ main() {
                 DEFAULTS[DNS]="$2"
                 ARG[DNS]=1
                 shift 2
+                ;;
+            --clone)
+                if [[ -n "${2:-}" ]]; then
+                    DEFAULTS[CLONE_SSID]="$2"
+                    ARG[CLONE_SSID]=1
+                    DEFAULTS[CLONE]="$2"
+                    ARG[CLONE]=1
+                    shift 2
+                else
+                    DEFAULTS[CLONE]="$2"
+                    ARG[CLONE]=1
+                    shift
+                fi
                 ;;
             --internet)
                 DEFAULTS[INTERNET_SHARING]=true
