@@ -1,3 +1,6 @@
+#!/bin/bash
+# GhostAP - A Bash script for creating a WiFi access point with various features
+
 if ((BASH_VERSINFO[0] < 4)); then
     echo "This script requires Bash version 4.0 or newer." >&2
     echo "Your version: ${BASH_VERSION}" >&2
