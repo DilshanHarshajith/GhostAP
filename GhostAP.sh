@@ -111,7 +111,7 @@ cleanup() {
 
     sync
     if [[ "${DEFAULTS[PACKET_CAPTURE]}" == true ]]; then
-        if [[ -s "${tmp_capture}" ]]; then
+        if [[ -n "${tmp_capture}" ]]; then
             log "Tshark process ${tshark_pid} ended, moving capture to ${capture_file}"
             mv "${tmp_capture}" "${capture_file}"
             log "Capture file moved to: ${capture_file}"
@@ -418,12 +418,9 @@ configure_interface() {
             INTERFACE=$(select_from_list "Select wireless interface:" "${interfaces[@]}")
             DEFAULTS[INTERFACE]="${INTERFACE}"
             log "Selected interface: ${INTERFACE}"
-        elif [[ -n "${ARG[INTERFACE]}" ]]; then
+        else
             INTERFACE="${DEFAULTS[INTERFACE]}"
             log "Using specified interface: ${INTERFACE}"
-        else
-            warn "No wireless interface specified, using default: ${DEFAULTS[INTERFACE]}"
-            INTERFACE="${DEFAULTS[INTERFACE]}"
         fi
     else
         if [[ -n "${ARG[INTERFACE]}" ]]; then
@@ -1335,13 +1332,13 @@ main() {
         [[ -t 0 ]] && INTERACTIVE_MODE=true || INTERACTIVE_MODE=false
     fi
 
-    local arg_values_set=false
     for var in SSID CHANNEL SUBNET DNS SECURITY PASSWORD INTERNET_SHARING DNS_SPOOFING PACKET_CAPTURE MONITOR_MODE PROXY_ENABLED PROXY_HOST PROXY_PORT PROXY_TYPE PROXY_USER PROXY_PASS INTERFACE SOURCE_INTERFACE; do
-        if [[ -n "${DEFAULTS[${var}]}" && "${DEFAULTS[${var}]}" != "${!var}" && "${DEFAULTS[${var}]}" != "" ]]; then
+        if [[ -v ARG[${var}] ]]; then
             arg_values_set=true
             break
         fi
     done
+    
     if [[ "${INTERACTIVE_MODE}" == true && "${arg_values_set}" == true ]]; then
         echo "⚠️  Info: You are using both interactive mode and command-line arguments."
         echo "    Arguments you provide will be used as defaults and will not be prompted for."
