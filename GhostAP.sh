@@ -1171,6 +1171,8 @@ start_services() {
         sleep 1
     done
 
+    configure_clone
+
     log "Starting hostapd..."
     local hostapd_log="${LOG_DIR}/hostapd.log"
     
