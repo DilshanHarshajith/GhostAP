@@ -254,37 +254,36 @@ get_wifi_ssids() {
 
 get_ap_info() {
   local target_ssid="$1"
-  local interface=${2:-"${DEFAULTS[INTERFACE]}"}  # Default interface wlan0, can be overridden by argument
-  local ap_info=()
+  local interface="${2:-wlan0}"
 
-  # Scan and parse output
-  # Each cell starts with "Cell XX - Address: MAC"
-  # Then lines with Channel and ESSID
   sudo iwlist "$interface" scan | awk -v ssid="$target_ssid" '
-    BEGIN { found=0; }
-    /Cell [0-9]+ - Address: / {
-      mac = $5;
-      found=0;
-      channel="";
-      essid="";
+    BEGIN {
+      mac = ""; channel = ""; essid = "";
     }
+
+    /Cell [0-9]+ - Address:/ {
+      mac = $NF;
+      channel = ""; essid = "";
+    }
+
     /Channel:/ {
-      channel=$2;
+      channel = $2;
     }
+
+    /Frequency:/ {
+      match($0, /\(Channel ([0-9]+)\)/, arr);
+      if (arr[1] != "") channel = arr[1];
+    }
+
     /ESSID:/ {
-      gsub(/"/, "", $1);
-      essid=substr($0, index($0,$1)+length($1)+1);
-      gsub(/"/, "", essid);
-      if (essid == ssid) {
-        print essid, channel, mac;
-        found=1;
+      match($0, /ESSID:"(.*)"/, arr);
+      essid = arr[1];
+      if (essid == ssid && mac && channel) {
+        # Use pipe as delimiter
+        print essid "|" channel "|" mac;
       }
     }
-  ' | while read -r ssid channel mac; do
-    ap_info=("$ssid" "$channel" "$mac")
-    # Output the array elements separated by space
-    echo "${ap_info[@]}"
-  done
+  '
 }
 
 select_from_list() {
@@ -458,66 +457,67 @@ configure_hostapd() {
     local password="${DEFAULTS[PASSWORD]}"
     
     if [[ "${INTERACTIVE_MODE}" == true ]]; then
+        if [[ -z "${DEFAULTS[CLONE]}" ]]; then
+            if [[ -z "${ARG[SSID]}" ]]; then
+                read -r -p "SSID [${ssid}]: " input
+                ssid="${input:-${ssid}}"
+            fi
 
-        if [[ -z "${ARG[SSID]}" ]]; then
-            read -r -p "SSID [${ssid}]: " input
-            ssid="${input:-${ssid}}"
-        fi
+            if [[ -z "${ARG[CHANNEL]}" ]]; then
+                while true; do
+                    read -r -p "Channel [${channel}]: " input
+                    channel="${input:-${channel}}"
+                    if validate_channel "${channel}"; then
+                        break
+                    else
+                        echo "Invalid channel. Please enter 1-14"
+                    fi
+                done
+            fi
 
-        if [[ -z "${ARG[CHANNEL]}" ]]; then
-            while true; do
-                read -r -p "Channel [${channel}]: " input
-                channel="${input:-${channel}}"
-                if validate_channel "${channel}"; then
-                    break
-                else
-                    echo "Invalid channel. Please enter 1-14"
-                fi
-            done
-        fi
+            if [[ -z "${ARG[SECURITY]}" ]]; then
+                declare -A SECURITY_MAP=(
+                    ["Open (no password)"]="open"
+                    ["WPA2-PSK (password)"]="wpa2"
+                    ["WPA3-SAE (WPA3)"]="wpa3"
+                )
+                sec_choice=$(select_from_list "Security type:" 1 "Open (no password)" "WPA2-PSK (password)" "WPA3-SAE (WPA3)")
+                security="${SECURITY_MAP[${sec_choice}]}"
+            fi
 
-        if [[ -z "${ARG[SECURITY]}" ]]; then
-            declare -A SECURITY_MAP=(
-                ["Open (no password)"]="open"
-                ["WPA2-PSK (password)"]="wpa2"
-                ["WPA3-SAE (WPA3)"]="wpa3"
-            )
-            sec_choice=$(select_from_list "Security type:" 1 "Open (no password)" "WPA2-PSK (password)" "WPA3-SAE (WPA3)")
-            security="${SECURITY_MAP[${sec_choice}]}"
+            if [[ -z "${ARG[PASSWORD]}" && "${security}" != "open" ]]; then
+                while true; do
+                    read -s -r -p "Password (8-63 characters): " password
+                    echo
+                    if [[ ${#password} -ge 8 && ${#password} -le 63 ]]; then
+                        break
+                    else
+                        echo "Password must be 8-63 characters long"
+                    fi
+                done
+            fi
+            
+            DEFAULTS[SSID]="${ssid}"
+            DEFAULTS[CHANNEL]="${channel}"
+            DEFAULTS[SECURITY]="${security}"
+            DEFAULTS[PASSWORD]="${password}"
         fi
-
-        if [[ -z "${ARG[PASSWORD]}" && "${security}" != "open" ]]; then
-            while true; do
-                read -s -r -p "Password (8-63 characters): " password
-                echo
-                if [[ ${#password} -ge 8 && ${#password} -le 63 ]]; then
-                    break
-                else
-                    echo "Password must be 8-63 characters long"
-                fi
-            done
-        fi
-        
-        DEFAULTS[SSID]="${ssid}"
-        DEFAULTS[CHANNEL]="${channel}"
-        DEFAULTS[SECURITY]="${security}"
-        DEFAULTS[PASSWORD]="${password}"
     fi
     
-    if ! validate_channel "${channel}"; then
-        error "Invalid channel: ${channel} (must be 1-14)"
+    if ! validate_channel "${DEFAULTS[CHANNEL]}"; then
+        error "Invalid channel: ${DEFAULTS[CHANNEL]} (must be 1-14)"
     fi
 
-    if [[ ! "${security}" =~ ^(open|wpa2|wpa3)$ ]]; then
-        error "Invalid security type: ${security} (must be open/wpa2/wpa3)"
+    if [[ ! "${DEFAULTS[SECURITY]}" =~ ^(open|wpa2|wpa3)$ ]]; then
+        error "Invalid security type: ${DEFAULTS[SECURITY]} (must be open/wpa2/wpa3)"
     fi
-    
-    if [[ "${security}" != "open" && (${#password} -lt 8 || ${#password} -gt 63) ]]; then
+
+    if [[ "${DEFAULTS[SECURITY]}" != "open" && (${#DEFAULTS[PASSWORD]} -lt 8 || ${#DEFAULTS[PASSWORD]} -gt 63) ]]; then
         error "Invalid password length: must be 8-63 characters for WPA2/WPA3"
     fi
-    
-    if [[ "${security}" == "open" ]]; then
-        password=""
+
+    if [[ "${DEFAULTS[SECURITY]}" == "open" ]]; then
+        DEFAULTS[PASSWORD]=""
     fi
 
     DEFAULTS[SSID]="${ssid}"
@@ -1108,7 +1108,7 @@ configure_clone(){
 
     if [[ "${INTERACTIVE_MODE}" == true ]]; then
         if [[ -z "${ARG[CLONE_SSID]}" ]]; then
-            read -r -a wifi_aps < <(get_wifi_aps "${INTERFACE}")
+            mapfile -t wifi_aps < <(get_wifi_ssids "${INTERFACE}")
             DEFAULTS[CLONE_SSID]=$(select_from_list "Select Access Point for cloning interface:" "${wifi_aps[@]}")
             log "Selected Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
         else
@@ -1126,10 +1126,12 @@ configure_clone(){
         return 0
     }
 
-    read -r -a result < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${INTERFACE}")
-    DEFAULTS[SSID]="${result[0]}"
-    DEFAULTS[CHANNEL]="${result[1]}"
-    DEFAULTS[MAC]="${result[2]}"
+    IFS="|" read -r ssid channel mac < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${INTERFACE}")
+    DEFAULTS[SSID]="$ssid"
+    DEFAULTS[CHANNEL]="$channel"
+    DEFAULTS[MAC]="$mac"
+
+    log "Cloning interface ${INTERFACE} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}"
 }
 
 start_services() {
@@ -1170,8 +1172,6 @@ start_services() {
         warn "Waiting for previous hostapd to exit..."
         sleep 1
     done
-
-    configure_clone
 
     log "Starting hostapd..."
     local hostapd_log="${LOG_DIR}/hostapd.log"
@@ -1566,6 +1566,7 @@ main() {
     [[ -n "${CONFIG_FILE}" ]] && load_config
 
     configure_interface
+    configure_clone
     configure_hostapd
     configure_dhcp
 
