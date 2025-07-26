@@ -1429,7 +1429,7 @@ main() {
                 if [[ -n "${2:-}" ]]; then
                     DEFAULTS[CLONE_SSID]="$2"
                     ARG[CLONE_SSID]=1
-                    DEFAULTS[CLONE]="$2"
+                    DEFAULTS[CLONE]=true
                     ARG[CLONE]=1
                     shift 2
                 else
