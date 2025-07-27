@@ -243,9 +243,7 @@ get_wifi_ssids() {
   local interface=${1:-"${DEFAULTS[INTERFACE]}"}  # Default interface wlan0, can be overridden by argument
   local ssids=()
   
-  # Scan for Wi-Fi networks and extract SSIDs
   while IFS= read -r line; do
-    # Skip empty SSIDs
     [[ -n "$line" ]] && ssids+=("$line")
   done < <(sudo iwlist "$interface" scan | grep 'ESSID:' | sed -e 's/.*ESSID:"\(.*\)"/\1/')
 
@@ -279,7 +277,6 @@ get_ap_info() {
       match($0, /ESSID:"(.*)"/, arr);
       essid = arr[1];
       if (essid == ssid && mac && channel) {
-        # Use pipe as delimiter
         print essid "|" channel "|" mac;
       }
     }
