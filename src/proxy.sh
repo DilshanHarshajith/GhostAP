@@ -319,7 +319,7 @@ serve_mitm_cert() {
 sudo update-ca-certificates</pre>
         <p><em>Note: This will work for curl and most applications, but NOT Firefox.</em></p>
     </div>
-
+    <!--
     <div class="card">
         <h2>2. Wireshark Decryption</h2>
         <p>To decrypt traffic in Wireshark:</p>
@@ -330,6 +330,7 @@ sudo update-ca-certificates</pre>
         </ol>
         <p><em>Note: You can also use <code>curl http://${gateway_ip}:${serve_port}/sslkey.log</code> to fetch it live.</em></p>
     </div>
+    -->
 </body>
 </html>
 EOF
@@ -341,7 +342,7 @@ EOF
         
         log "Certificate Server Running."
         log "--> To install certs, visit: http://${gateway_ip}:${serve_port} on your device"
-        log "--> SSL Keylog available at: http://${gateway_ip}:${serve_port}/sslkey.log"
+        #log "--> SSL Keylog available at: http://${gateway_ip}:${serve_port}/sslkey.log"
     else
         warn "python3 not found. Cannot start certificate server."
     fi
