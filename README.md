@@ -4,16 +4,18 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 
 ## Features
 
-- **Wireless Access Point Creation**: Set up secure or open WiFi networks
-- **AP Cloning**: Quickly clone existing networks by SSID
-- **Internet Sharing**: Share internet connection from another interface
-- **Real-time Client Monitoring**: Track connected devices and their details
-- **Packet Capture**: Real-time traffic monitoring with tshark
-- **DNS Spoofing**: Redirect domains to custom IP addresses
-- **Proxy Integration**: Advanced support for mitmproxy and redsocks
+- **Wireless Access Point Creation**: Set up secure (WPA2/WPA3) or open WiFi networks
+- **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration
+- **Internet Sharing**: Share internet connection from another interface via NAT
+- **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
+- **Packet Capture**: Real-time traffic monitoring and PCAP export with tshark
+- **DNS Spoofing**: Redirect specific domains to custom IP addresses
+- **DoH Blocking**: Block DNS-over-HTTPS to enforce DNS spoofing
+- **Proxy Integration**: Advanced support for mitmproxy (local/remote) and redsocks
+- **SSL/TLS Interception**: Automatic certificate generation and distribution server
 - **Monitor Mode**: Enable wireless monitoring capabilities
 - **Interactive & CLI Modes**: Flexible configuration options
-- **Configuration Management**: Save and load configurations with CLI overrides
+- **Configuration Management**: Save and load configurations with CLI argument overrides
 - **Comprehensive Logging**: Detailed operation logs for all services
 
 ## Requirements
@@ -129,6 +131,7 @@ sudo ./GhostAP.sh --mitmlocal -s "InterceptAP"
 | `--capture` | Enable packet capture |
 | `--spoof "DOMAINS"` | Enable DNS spoofing (Format: `dom.com=1.2.3.4|dom2.com|...`) |
 | `--spoof-target IP` | Default target IP for DNS spoofing (when domain has no explicit IP) |
+| `--block-doh` | Block DNS-over-HTTPS to enforce DNS spoofing |
 
 ### Proxy Options
 | Option | Description |
@@ -209,10 +212,16 @@ sudo ./GhostAP.sh --spoof "example.com|test.com" --spoof-target 192.168.1.50
 
 # Mix explicit and default targets
 sudo ./GhostAP.sh --spoof "example.com=192.168.1.100|test.com" --spoof-target 10.0.0.1
+
+# Spoof with DoH blocking to prevent DNS bypass
+sudo ./GhostAP.sh --spoof "example.com" --block-doh
 ```
 
 > [!NOTE]
 > When DNS spoofing is enabled without `--spoof-target`, domains without explicit IPs default to the AP's IP address (192.168.X.1).
+
+> [!IMPORTANT]
+> Use `--block-doh` to block DNS-over-HTTPS traffic and force clients to use your DNS server. This prevents clients from bypassing DNS spoofing by using encrypted DNS services like Google DoH or Cloudflare DoH.
 
 ### Packet Capture
 Captured packets are saved to the `Output` directory with timestamps:
@@ -223,9 +232,39 @@ ls -la Output/*.pcap
 ### Proxy Routing
 GhostAP supports three advanced proxying modes:
 
-1. **Local Transparent Proxy (`--mitmlocal`)**: Intercepts HTTP/HTTPS traffic locally using `mitmproxy`. It automatically starts a web interface and a certificate distribution server.
-2. **Upstream Proxy (`--proxy`)**: Forwards intercepted traffic to an external HTTP or SOCKS proxy using `redsocks`.
-3. **Remote Forwarding (`--mitmremote`)**: Simple DNAT forwarding to a remote IP/Port, useful if `mitmproxy` is running on another machine.
+#### 1. Local Transparent Proxy (`--mitmlocal` or `--proxy-mode TRANSPARENT_LOCAL`)
+Intercepts HTTP/HTTPS traffic locally using `mitmproxy`:
+- Automatically starts mitmproxy on port 8080
+- Launches web interface (mitmweb) for real-time traffic inspection
+- Starts certificate distribution server on port 8081
+- Traffic flow: `Client → AP (8080) → Internet`
+
+```bash
+sudo ./GhostAP.sh --mitmlocal -s "InterceptAP"
+# Access web interface at: http://192.168.X.1:8081
+# Download certificate from: http://mitm.it or http://192.168.X.1:8082/cert
+```
+
+#### 2. Upstream Proxy (`--proxy` or `--proxy-mode TRANSPARENT_UPSTREAM`)
+Forwards intercepted traffic to an external HTTP or SOCKS proxy using `redsocks`:
+- Transparently redirects traffic to upstream proxy
+- Supports HTTP, SOCKS4, and SOCKS5 proxies
+- Supports authenticated proxies
+- Traffic flow: `Client → AP → Redsocks → External Proxy → Internet`
+
+```bash
+sudo ./GhostAP.sh --proxy --proxy-host 10.0.0.5 --proxy-port 3128 --proxy-type http
+```
+
+#### 3. Remote DNAT Forwarding (`--mitmremote` or `--proxy-mode REMOTE_DNAT`)
+Simple DNAT forwarding to a remote IP/Port (useful if mitmproxy runs on another machine):
+- Uses iptables DNAT rules
+- No local proxy process
+- Traffic flow: `Client → AP → Remote Host (DNAT)`
+
+```bash
+sudo ./GhostAP.sh --mitmremote --proxy-host 10.0.0.10 --proxy-port 8080
+```
 
 ### Connected Devices Monitoring
 The script monitors connected clients in real-time by watching DHCP leases. It displays:
@@ -233,15 +272,34 @@ The script monitors connected clients in real-time by watching DHCP leases. It d
 - Assigned IP Address
 - Device Hostname (if available)
 
-## Directory Structure
+## Architecture
 
-The script creates the following directory structure:
+GhostAP uses a modular architecture with separate modules for each feature:
+
 ```
 GhostAP/
-├── Config/          # Configuration files
-├── Logs/           # Log files
-├── Output/         # Packet captures
-└── Temp/           # Temporary files
+├── GhostAP.sh           # Main entry point
+└── src/
+    ├── globals.sh       # Global variables and constants
+    ├── utils.sh         # Logging, validation, cleanup functions
+    ├── config.sh        # Configuration management and argument parsing
+    ├── ui.sh            # User interface and status display
+    ├── interface.sh     # Wireless interface management
+    ├── hostapd.sh       # Access point configuration
+    ├── dnsmasq.sh       # DHCP/DNS server and spoofing
+    ├── internet.sh      # NAT and internet sharing
+    ├── proxy.sh         # Proxy routing (mitmproxy/redsocks)
+    ├── capture.sh       # Packet capture with tshark
+    └── services.sh      # Service lifecycle management
+```
+
+### Runtime Directory Structure
+```
+GhostAP/
+├── Config/          # Saved configuration files
+├── Logs/            # Service logs (hostapd, dnsmasq, tshark, etc.)
+├── Output/          # Packet capture files (.pcap)
+└── Temp/            # Temporary runtime files
 ```
 
 ## Monitoring and Logs
