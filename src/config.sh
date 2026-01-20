@@ -165,7 +165,15 @@ parse_arguments() {
                     shift 2
                 else
                     shift
+                else
+                    shift
                 fi
+                ;;
+            --spoof-target)
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                DEFAULTS[SPOOF_TARGET_IP]="$2"
+                ARG[SPOOF_TARGET_IP]=1
+                shift 2
                 ;;
             --clone)
                 DEFAULTS[CLONE]=true

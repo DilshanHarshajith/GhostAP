@@ -182,6 +182,7 @@ Network Configuration:
 Features:
   --capture                  Enable Packet Capture (tshark)
   --spoof [domain]           Enable DNS Spoofing (optional: specify domain)
+  --spoof-target <ip>        Default IP for spoofed domains (default: AP IP)
   --clone [ssid]             Clone an existing network (optional: specify SSID)
 
 Proxy & MITM:

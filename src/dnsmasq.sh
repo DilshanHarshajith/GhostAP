@@ -94,29 +94,59 @@ configure_dns_spoof() {
                 DEFAULTS[DNS_SPOOFING]=false
             fi
         fi
+        
+        if [[ "${DEFAULTS[DNS_SPOOFING]}" == true && -z "${ARG[SPOOF_TARGET_IP]}" ]]; then
+            read -r -p "Default Target IP for spoofing (leave empty for AP IP): " target_ip
+            if [[ -n "${target_ip}" ]]; then
+                if validate_ip "${target_ip}"; then
+                     DEFAULTS[SPOOF_TARGET_IP]="${target_ip}"
+                else
+                     warn "Invalid IP, will default to AP IP for non-explicit domains."
+                fi
+            fi
+        fi
     fi
 
     [[ "${DEFAULTS[DNS_SPOOFING]}" == true ]] || return
 
     log "Configuring DNS spoofing..."
+    
+    local default_target="${DEFAULTS[SPOOF_TARGET_IP]}"
+    # If default target is still empty, use AP IP
+    if [[ -z "${default_target}" ]]; then
+        default_target="192.168.${SUBNET_OCT}.1"
+    fi
 
     if [[ -n "${ARG[SPOOF_DOMAINS]}" ]]; then
         IFS='|' read -ra entries <<< "$SPOOF_DOMAINS"
         for spoof_entry in "${entries[@]}"; do
-            if [[ "${spoof_entry}" =~ ^[^=]+=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                echo "address=/${spoof_entry/=//}" >> "${DNSMASQ_CONF}"
-                log "Added DNS spoof: ${spoof_entry}"
+            # Check if entry has explicit IP (contains =)
+            if [[ "${spoof_entry}" == *"="* ]]; then
+                if [[ "${spoof_entry}" =~ ^[^=]+=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "address=/${spoof_entry/=//}" >> "${DNSMASQ_CONF}"
+                    log "Added DNS spoof: ${spoof_entry}"
+                else
+                    warn "Invalid format for DNS spoofing entry: ${spoof_entry}. Use Format: domain.com=192.168.1.1"
+                fi
             else
-                warn "Invalid format for DNS spoofing entry: ${entry}. Use Format: domain.com=192.168.1.1"
+                # No IP specified, use default target
+                 echo "address=/${spoof_entry}/${default_target}" >> "${DNSMASQ_CONF}"
+                 log "Added DNS spoof: ${spoof_entry} -> ${default_target}"
             fi
         done
     else
-        while read -r -p "Enter domains to spoof (format: domain.com=192.168.1.1), empty line to finish: " spoof_entry && [[ -n "${spoof_entry}" ]]; do
-            if [[ "${spoof_entry}" =~ ^[^=]+=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                echo "address=/${spoof_entry/=//}" >> "${DNSMASQ_CONF}"
-                log "Added DNS spoof: ${spoof_entry}"
+        while read -r -p "Enter domains to spoof (format: domain.com or domain.com=1.2.3.4), empty line to finish: " spoof_entry && [[ -n "${spoof_entry}" ]]; do
+            if [[ "${spoof_entry}" == *"="* ]]; then
+                if [[ "${spoof_entry}" =~ ^[^=]+=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "address=/${spoof_entry/=//}" >> "${DNSMASQ_CONF}"
+                    log "Added DNS spoof: ${spoof_entry}"
+                else
+                    echo "Invalid format. Use: domain.com=192.168.1.1"
+                fi
             else
-                echo "Invalid format. Use: domain.com=192.168.1.1"
+                 # domain only
+                 echo "address=/${spoof_entry}/${default_target}" >> "${DNSMASQ_CONF}"
+                 log "Added DNS spoof: ${spoof_entry} -> ${default_target}"
             fi
         done
     fi
