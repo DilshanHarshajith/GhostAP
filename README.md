@@ -43,9 +43,10 @@ pip install mitmproxy
 
 ## Installation
 
-1. Download the script:
+1. Clone the repository:
 ```bash
-wget https://github.com/DilshanHarshajith/GhostAP/blob/main/GhostAP.sh
+git clone https://github.com/DilshanHarshajith/GhostAP.git
+cd GhostAP
 chmod +x GhostAP.sh
 ```
 
@@ -70,7 +71,7 @@ sudo ./GhostAP.sh -i wlan0 -s "MyOpenAP" -c 6 --security open
 
 #### Secure WPA2 Access Point with Internet Sharing
 ```bash
-sudo ./GhostAP.sh -i wlan0 -s "MySecureAP" -c 6 --security wpa2 -p "password123" --internet -si eth0
+sudo ./GhostAP.sh -i wlan0 -s "MySecureAP" -c 6 --security wpa2 --password "password123" --internet -si eth0
 ```
 
 #### Access Point with Packet Capture
@@ -116,7 +117,7 @@ sudo ./GhostAP.sh --mitmlocal -s "InterceptAP"
 | `-s, --ssid SSID` | Network name (SSID) |
 | `-c, --channel CHANNEL` | WiFi channel (1-14) |
 | `--security TYPE` | Security type (open/wpa2/wpa3) |
-| `-p, --password PASSWORD` | WiFi password (for WPA2/WPA3) |
+| `--password PASSWORD` | WiFi password (for WPA2/WPA3) |
 | `--subnet OCTET` | Subnet third octet (0-255) |
 | `--dns IP` | DNS server IP address |
 
@@ -126,7 +127,8 @@ sudo ./GhostAP.sh --mitmlocal -s "InterceptAP"
 | `--monitor` | Enable monitor mode |
 | `--internet` | Enable internet sharing |
 | `--capture` | Enable packet capture |
-| `--spoof "DOMAINS"` | Enable DNS spoofing (Format: `dom.com=1.2.3.4|...`) |
+| `--spoof "DOMAINS"` | Enable DNS spoofing (Format: `dom.com=1.2.3.4|dom2.com|...`) |
+| `--spoof-target IP` | Default target IP for DNS spoofing (when domain has no explicit IP) |
 
 ### Proxy Options
 | Option | Description |
@@ -146,7 +148,7 @@ sudo ./GhostAP.sh --mitmlocal -s "InterceptAP"
 
 ### Saving Configurations
 ```bash
-sudo ./GhostAP.sh --save myconfig -i wlan0 -s "MyAP" --security wpa2 -p "password"
+sudo ./GhostAP.sh --save myconfig -i wlan0 -s "MyAP" --security wpa2 --password "password"
 ```
 
 ### Loading Configurations
@@ -159,20 +161,39 @@ sudo ./GhostAP.sh --config /path/to/myconfig.conf
 
 ### Configuration File Format
 ```ini
+# Network Configuration
+INTERFACE="wlan0"
 SSID="MyAccessPoint"
 CHANNEL="6"
 SUBNET="10"
 DNS="8.8.8.8"
 SECURITY="wpa2"
 PASSWORD="mypassword"
+
+# Features
 INTERNET_SHARING="true"
+SOURCE_INTERFACE="eth0"
 DNS_SPOOFING="false"
 PACKET_CAPTURE="true"
-MONITOR_MODE="false"
-PROXY_ENABLED="false"
-PROXY_MODE="TRANSPARENT_LOCAL"
+
+# Cloning Options
 CLONE="false"
 CLONE_SSID=""
+
+# Proxy Options
+PROXY_ENABLED="false"
+PROXY_MODE="TRANSPARENT_LOCAL"
+PROXY_BACKEND=""
+MITM_LOCATION=""
+START_MITM_AUTO="true"
+PROXY_HOST=""
+PROXY_PORT=""
+PROXY_TYPE=""
+PROXY_USER=""
+PROXY_PASS=""
+
+# DNS Spoofing Options
+SPOOF_DOMAINS=""
 ```
 
 ## Advanced Features
@@ -180,8 +201,18 @@ CLONE_SSID=""
 ### DNS Spoofing
 Redirect specific domains to custom IP addresses:
 ```bash
+# Spoof specific domains with explicit IPs
 sudo ./GhostAP.sh --spoof "example.com=192.168.1.100|test.com=10.0.0.1"
+
+# Spoof domains to default target (AP IP or custom target)
+sudo ./GhostAP.sh --spoof "example.com|test.com" --spoof-target 192.168.1.50
+
+# Mix explicit and default targets
+sudo ./GhostAP.sh --spoof "example.com=192.168.1.100|test.com" --spoof-target 10.0.0.1
 ```
+
+> [!NOTE]
+> When DNS spoofing is enabled without `--spoof-target`, domains without explicit IPs default to the AP's IP address (192.168.X.1).
 
 ### Packet Capture
 Captured packets are saved to the `Output` directory with timestamps:
