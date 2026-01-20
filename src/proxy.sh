@@ -123,6 +123,18 @@ configure_proxy() {
              echo
              DEFAULTS[PROXY_PASS]="${user_input:-"${DEFAULTS[PROXY_PASS]}"}"
          fi
+    else
+        # Non-Interactive Mode Validation
+        if [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]]; then
+            if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" || "${proxy_mode}" == "REMOTE_DNAT" ]]; then
+                 [[ -n "${DEFAULTS[PROXY_HOST]}" ]] || error "Proxy host is required for ${proxy_mode} (use --proxy-host)"
+                 [[ -n "${DEFAULTS[PROXY_PORT]}" ]] || error "Proxy port is required for ${proxy_mode} (use --proxy-port)"
+            fi
+            
+            if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" ]]; then
+                [[ -n "${DEFAULTS[PROXY_TYPE]}" ]] || error "Proxy type is required for Upstream Proxy (use --proxy-type)"
+            fi
+        fi
     fi
 
     log "Proxy configured. Mode: ${proxy_mode}"

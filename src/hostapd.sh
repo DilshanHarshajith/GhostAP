@@ -51,10 +51,19 @@ configure_hostapd() {
                 done
             fi
             
-            DEFAULTS[SSID]="${ssid}"
-            DEFAULTS[CHANNEL]="${channel}"
             DEFAULTS[SECURITY]="${security}"
             DEFAULTS[PASSWORD]="${password}"
+        fi
+    else
+        # Non-Interactive Mode Validation
+        if [[ "${DEFAULTS[CLONE]}" != "true" ]]; then
+            [[ -n "${DEFAULTS[SSID]}" ]] || error "SSID is required in non-interactive mode (use -s or --ssid)"
+            [[ -n "${DEFAULTS[CHANNEL]}" ]] || error "Channel is required in non-interactive mode (use -c or --channel)"
+            [[ -n "${DEFAULTS[SECURITY]}" ]] || error "Security type is required in non-interactive mode (use --security)"
+            
+            if [[ "${DEFAULTS[SECURITY]}" != "open" ]]; then
+                [[ -n "${DEFAULTS[PASSWORD]}" ]] || error "Password is required for ${DEFAULTS[SECURITY]} in non-interactive mode (use --password)"
+            fi
         fi
     fi
     

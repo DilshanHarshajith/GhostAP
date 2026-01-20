@@ -163,6 +163,56 @@ validate_port() {
     ((port >= 1 && port <= 65535)) || return 1
 }
 
+
+show_usage() {
+    cat << EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Network Configuration:
+  -i, --interface <iface>    Wireless interface to use for AP
+  -s, --ssid <name>          SSID (Network Name)
+  -c, --channel <num>        Channel (1-14)
+  --security <type>          Security type: open, wpa2, wpa3
+  --password <pass>          Password for WPA2/WPA3 (8-63 chars)
+  --subnet <octet>           Subnet octet (default: 10 -> 192.168.10.1)
+  --dns <ip>                 Custom DNS server (default: 8.8.8.8)
+  --internet                 Enable Internet Sharing (NAT)
+  -si, --source-interface    Source interface for Internet (e.g., eth0)
+
+Features:
+  --capture                  Enable Packet Capture (tshark)
+  --spoof [domain]           Enable DNS Spoofing (optional: specify domain)
+  --clone [ssid]             Clone an existing network (optional: specify SSID)
+
+Proxy & MITM:
+  --proxy-mode <mode>        Proxy Mode: TRANSPARENT_LOCAL, TRANSPARENT_UPSTREAM, REMOTE_DNAT
+  --mitm-auto [true|false]   Automatically start mitmproxy (default: true)
+  
+  Legacy/Shortcut Proxy Flags:
+  --mitmlocal                Shortcut for --proxy-mode TRANSPARENT_LOCAL
+  --mitmremote               Shortcut for --proxy-mode REMOTE_DNAT
+  --proxy                    Shortcut for --proxy-mode TRANSPARENT_UPSTREAM
+
+  Upstream/Remote Proxy Options:
+  --proxy-host <ip>          Upstream Proxy IP or Remote Host IP
+  --proxy-port <port>        Upstream Proxy Port or Remote Host Port
+  --proxy-type <type>        Proxy Type: http, socks4, socks5
+  --proxy-user <user>        Proxy Username
+  --proxy-pass <pass>        Proxy Password
+
+Global:
+  --int, --interactive       Run in Interactive Mode
+  --config <file>            Load configuration from file
+  --save <name>              Save current configuration
+  -h, --help                 Show this help message
+
+Examples:
+  $(basename "$0") -i wlan0 -s MyAP --internet
+  $(basename "$0") --int
+  $(basename "$0") -i wlan0 --mitmlocal --spoof google.com
+EOF
+}
+
 handle_signal() {
     local signal="$1"
     log "Received signal: ${signal}"

@@ -77,95 +77,65 @@ EOF
 
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
-        case "$1" in
+        local key="$1"
+        case "${key}" in
             --int|--interactive)
                 INTERACTIVE_MODE=true
                 shift
                 ;;
             --config)
-                if [[ -z "${2:-}" ]]; then
-                    error "No configuration file specified after --config"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for --config"
                 CONFIG_FILE="$2"
                 [[ -f "${CONFIG_FILE}" ]] || error "Configuration file not found: ${CONFIG_FILE}"
                 shift 2
                 ;;
             --save)
-                if [[ -z "${2:-}" ]]; then
-                    error "No name file specified after --save"
-                fi            
+                [[ -z "${2:-}" ]] && error "Missing argument for --save"
                 CONFIG_NAME="$2"
                 SAVE_CONFIG=true
                 shift 2
                 ;;
             -i|--interface)
-                if [[ -z "${2:-}" ]]; then
-                    error "No interface specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[INTERFACE]="$2"
                 ARG[INTERFACE]=1
                 shift 2
                 ;;
             -s|--ssid)
-                if [[ -z "${2:-}" ]]; then
-                    error "No SSID specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[SSID]="$2"
                 ARG[SSID]=1
                 shift 2
                 ;;
             -c|--channel)
-                if [[ -z "${2:-}" ]]; then
-                    error "No channel specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[CHANNEL]="$2"
                 ARG[CHANNEL]=1
                 shift 2
                 ;;
             --security)
-                if [[ -z "${2:-}" ]]; then
-                    error "No security type specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[SECURITY]="$2"
                 ARG[SECURITY]=1
                 shift 2
                 ;;
             --password)
-                if [[ -z "${2:-}" ]]; then
-                    error "No password specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PASSWORD]="$2"
                 ARG[PASSWORD]=1
                 shift 2
                 ;;
             --subnet)
-                if [[ -z "${2:-}" ]]; then
-                    error "No subnet specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[SUBNET]="$2"
                 ARG[SUBNET]=1
                 shift 2
                 ;;
             --dns)
-                if [[ -z "${2:-}" ]]; then
-                    error "No DNS IP specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[DNS]="$2"
                 ARG[DNS]=1
                 shift 2
-                ;;
-            --clone)
-                if [[ -n "${2:-}" ]]; then
-                    DEFAULTS[CLONE_SSID]="$2"
-                    ARG[CLONE_SSID]=1
-                    DEFAULTS[CLONE]=true
-                    ARG[CLONE]=1
-                    shift 2
-                else
-                    DEFAULTS[CLONE]="$2"
-                    ARG[CLONE]=1
-                    shift
-                fi
                 ;;
             --internet)
                 DEFAULTS[INTERNET_SHARING]=true
@@ -173,11 +143,9 @@ parse_arguments() {
                 shift
                 ;;
             -si|--source-interface)
-                if [[ -z "${2:-}" ]]; then
-                    error "No source interface specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[INTERNET_SHARING]=true
-                ARG[INTERNET_SHARING]=1                
+                ARG[INTERNET_SHARING]=1
                 DEFAULTS[SOURCE_INTERFACE]="$2"
                 ARG[SOURCE_INTERFACE]=1
                 shift 2
@@ -188,99 +156,95 @@ parse_arguments() {
                 shift
                 ;;
             --spoof)
-                if [[ -n "${2:-}" && ! "$2" =~ ^-- ]]; then
-                    SPOOF_DOMAINS="$2"
+                DEFAULTS[DNS_SPOOFING]=true
+                ARG[DNS_SPOOFING]=1
+                # Check if next arg exists and does NOT start with -
+                if [[ -n "${2:-}" && ! "$2" =~ ^- ]]; then
                     DEFAULTS[SPOOF_DOMAINS]="$2"
                     ARG[SPOOF_DOMAINS]=1
                     shift 2
                 else
                     shift
                 fi
-                DEFAULTS[DNS_SPOOFING]=true
-                ARG[DNS_SPOOFING]=1
                 ;;
-            --mitm-auto)
-                if [[ -n "${2:-}" && "$2" =~ ^(true|false)$ ]]; then
-                    DEFAULTS[START_MITM_AUTO]="$2"
-                    ARG[START_MITM_AUTO]=1
+            --clone)
+                DEFAULTS[CLONE]=true
+                ARG[CLONE]=1
+                if [[ -n "${2:-}" && ! "$2" =~ ^- ]]; then
+                    DEFAULTS[CLONE_SSID]="$2"
+                    ARG[CLONE_SSID]=1
                     shift 2
                 else
-                    DEFAULTS[START_MITM_AUTO]=true
-                    ARG[START_MITM_AUTO]=1
+                    shift
+                fi
+                ;;
+            --mitm-auto)
+                DEFAULTS[START_MITM_AUTO]=true
+                ARG[START_MITM_AUTO]=1
+                if [[ -n "${2:-}" && "$2" =~ ^(true|false)$ ]]; then
+                    DEFAULTS[START_MITM_AUTO]="$2"
+                    shift 2
+                else
                     shift
                 fi
                 ;;
             --proxy-mode)
-                if [[ -z "${2:-}" ]]; then
-                    error "No proxy mode specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_MODE]="$2"
                 ARG[PROXY_MODE]=1
                 shift 2
                 ;;
+            # Legacy/Shortcut Mappings
             --mitmlocal)
-                DEFAULTS[MITM_LOCATION]="LOCAL"
-                DEFAULTS[PROXY_BACKEND]="mitmproxy"
+                DEFAULTS[PROXY_MODE]="TRANSPARENT_LOCAL"
                 DEFAULTS[PROXY_ENABLED]=true
-                ARG[PROXY_BACKEND]=1
-                ARG[PROXY_ENABLED]=1
+                ARG[PROXY_MODE]=1
+                # Keep these for now to ensure proxy.sh works, though we should transition to just PROXY_MODE
+                DEFAULTS[MITM_LOCATION]="LOCAL" 
                 shift
                 ;;
             --mitmremote)
-                DEFAULTS[MITM_LOCATION]="REMOTE"
-                DEFAULTS[PROXY_BACKEND]="mitmproxy"
+                DEFAULTS[PROXY_MODE]="REMOTE_DNAT"
                 DEFAULTS[PROXY_ENABLED]=true
-                ARG[PROXY_BACKEND]=1
-                ARG[PROXY_ENABLED]=1
+                ARG[PROXY_MODE]=1
+                DEFAULTS[MITM_LOCATION]="REMOTE"
                 shift
                 ;;
             --proxy)
-                DEFAULTS[PROXY_BACKEND]="redsocks"
+                DEFAULTS[PROXY_MODE]="TRANSPARENT_UPSTREAM"
                 DEFAULTS[PROXY_ENABLED]=true
-                ARG[PROXY_BACKEND]=1
-                ARG[PROXY_ENABLED]=1
+                ARG[PROXY_MODE]=1
+                DEFAULTS[PROXY_BACKEND]="redsocks"
                 shift
                 ;;
             --proxy-host)
-                if [[ -z "${2:-}" ]]; then
-                    error "No proxy host specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_HOST]="$2"
-                DEFAULTS[PROXY_ENABLED]=true
+                DEFAULTS[PROXY_ENABLED]=true # Implicitly enable proxy if setting host
                 ARG[PROXY_HOST]=1
-                ARG[PROXY_ENABLED]=1
                 shift 2
                 ;;
             --proxy-port)
-                if [[ -z "${2:-}" ]]; then
-                    error "No proxy port specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_PORT]="$2"
                 DEFAULTS[PROXY_ENABLED]=true
                 ARG[PROXY_PORT]=1
-                ARG[PROXY_ENABLED]=1
                 shift 2
                 ;;
             --proxy-type)
-                if [[ -z "${2:-}" ]]; then
-                    error "No proxy type specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_TYPE]="$2"
                 ARG[PROXY_TYPE]=1
                 shift 2
                 ;;
             --proxy-user)
-                if [[ -z "${2:-}" ]]; then
-                    error "No proxy user specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_USER]="$2"
                 ARG[PROXY_USER]=1
                 shift 2
                 ;;
             --proxy-pass)
-                if [[ -z "${2:-}" ]]; then
-                    error "No proxy password specified after $1"
-                fi
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_PASS]="$2"
                 ARG[PROXY_PASS]=1
                 shift 2

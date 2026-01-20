@@ -20,10 +20,16 @@ configure_interface() {
             INTERFACE="${DEFAULTS[INTERFACE]}"
             log "Selected interface: ${INTERFACE}"
         else
-            INTERFACE=$(get_wireless_interfaces | head -n 1)
-            DEFAULTS[INTERFACE]="${INTERFACE}"
-            [[ -n "${INTERFACE}" ]] || error "No wireless interface found"
-            warn "No wireless interface specified, using default: ${DEFAULTS[INTERFACE]}"
+            # Try to auto-detect if not specified
+            local auto_interface
+            auto_interface=$(get_wireless_interfaces | head -n 1)
+            if [[ -n "${auto_interface}" ]]; then
+                INTERFACE="${auto_interface}"
+                DEFAULTS[INTERFACE]="${INTERFACE}"
+                warn "No wireless interface specified. Automatically selected: ${INTERFACE}"
+            else
+                error "No wireless interface found or specified. Use -i <interface>"
+            fi
         fi
     fi
 

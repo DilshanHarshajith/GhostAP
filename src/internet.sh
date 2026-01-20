@@ -32,14 +32,18 @@ configure_internet_sharing() {
     elif [[ -n "${ARG[SOURCE_INTERFACE]}" ]]; then
         SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
     else
-        mapfile -t interfaces < <(get_internet_interfaces | grep -v "^${INTERFACE}$")
-        if [[ ${#interfaces[@]} -eq 0 ]]; then
-            DEFAULTS[INTERNET_SHARING]=false
-            return
+        # Auto-select best interface
+        local best_iface
+        best_iface=$(find_best_upstream_interface)
+        if [[ -n "${best_iface}" ]]; then
+            SOURCE_INTERFACE="${best_iface}"
+            DEFAULTS[SOURCE_INTERFACE]="${best_iface}"
+            warn "No source interface specified. Automatically selected: ${SOURCE_INTERFACE}"
+        else
+             warn "No internet-connected interface found. Internet sharing will be disabled."
+             DEFAULTS[INTERNET_SHARING]=false
+             return
         fi
-        SOURCE_INTERFACE="${interfaces[0]}"
-        [[ -n "${SOURCE_INTERFACE}" ]] || { DEFAULTS[INTERNET_SHARING]=false; return; }
-        DEFAULTS[SOURCE_INTERFACE]="${SOURCE_INTERFACE}"
     fi
 
     DEFAULTS[SOURCE_INTERFACE]="${SOURCE_INTERFACE}"
@@ -80,4 +84,31 @@ enable_internet_sharing() {
             fi
         fi
     fi
+}
+
+find_best_upstream_interface() {
+    local interfaces
+    mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | grep -v "^${INTERFACE}$")
+    
+    local best_iface=""
+    local best_ping=9999
+    
+    for iface in "${interfaces[@]}"; do
+        # Check if interface is up
+        if ip link show "${iface}" | grep -q "state UP"; then
+             # Ping check.
+             local ping_time
+             ping_time=$(ping -I "${iface}" -c 1 -W 1 8.8.8.8 2>/dev/null | grep 'time=' | sed -E 's/.*time=([0-9.]+).*/\1/')
+             
+             if [[ -n "${ping_time}" ]]; then
+                 # Compare floating point numbers using awk
+                 if awk "BEGIN {exit !(${ping_time} < ${best_ping})}"; then
+                     best_ping=${ping_time}
+                     best_iface=${iface}
+                 fi
+             fi
+        fi
+    done
+    
+    echo "${best_iface}"
 }
