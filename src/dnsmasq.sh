@@ -153,3 +153,37 @@ configure_dns_spoof() {
 
     log "DNS Spoofing Enabled. (configure manually in dnsmasq.conf if needed)"
 }
+
+configure_doh_blocking() {
+    if [[ ${INTERACTIVE_MODE} == true ]]; then
+        if [[ -z "${ARG[BLOCK_DOH]}" ]]; then
+            read -r -p "Block DNS-over-HTTPS (DoH) to enforce DNS spoofing? (y/N): " enable_doh_blocking
+            if [[ "${enable_doh_blocking}" =~ ^[Yy]$ ]]; then
+                DEFAULTS[BLOCK_DOH]=true
+            elif [[ "${enable_doh_blocking}" =~ ^[Nn]$ ]]; then
+                DEFAULTS[BLOCK_DOH]=false
+            fi
+        fi
+    fi
+
+    [[ "${DEFAULTS[BLOCK_DOH]}" == true ]] || return
+
+    log "Configuring DNS-over-HTTPS (DoH) blocking..."
+    
+    # Block HTTPS traffic to known DoH providers
+    for doh_ip in "${DOH_PROVIDERS[@]}"; do
+        IPTABLES_RULES+=(
+            "iptables -I FORWARD -d ${doh_ip} -p tcp --dport 443 -j REJECT --reject-with tcp-reset"
+        )
+        log "Blocking DoH provider: ${doh_ip}"
+    done
+    
+    # Redirect all DNS queries (port 53) to local dnsmasq server
+    IPTABLES_RULES+=(
+        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p udp --dport 53 -j REDIRECT --to-port 53"
+        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 53 -j REDIRECT --to-port 53"
+    )
+    
+    log "DoH blocking enabled. All DNS traffic will be redirected to local DNS server."
+}
+

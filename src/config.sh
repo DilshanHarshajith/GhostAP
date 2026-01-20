@@ -72,6 +72,7 @@ PROXY_PASS="${DEFAULTS[PROXY_PASS]}"
 
 # DNS Options
 SPOOF_DOMAINS="${DEFAULTS[SPOOF_DOMAINS]}"
+BLOCK_DOH="${DEFAULTS[BLOCK_DOH]}"
 EOF
 }
 
@@ -172,6 +173,11 @@ parse_arguments() {
                 DEFAULTS[SPOOF_TARGET_IP]="$2"
                 ARG[SPOOF_TARGET_IP]=1
                 shift 2
+                ;;
+            --block-doh)
+                DEFAULTS[BLOCK_DOH]=true
+                ARG[BLOCK_DOH]=1
+                shift
                 ;;
             --clone)
                 DEFAULTS[CLONE]=true

@@ -76,6 +76,7 @@ declare -A DEFAULTS=(
     [CLONE_SSID]=""
     [SPOOF_DOMAINS]=""
     [SPOOF_TARGET_IP]=""
+    [BLOCK_DOH]=false
 )
 
 declare -A ARG
@@ -96,3 +97,15 @@ declare -g TSHARK_PID=""
 declare -g -a PIDS=()
 declare -g -a IPTABLES_RULES=()
 declare -g -a APPLIED_RULES=()
+
+# Known DNS-over-HTTPS (DoH) provider IPs
+declare -g -a DOH_PROVIDERS=(
+    "1.1.1.1"           # Cloudflare
+    "1.0.0.1"           # Cloudflare
+    "8.8.8.8"           # Google
+    "8.8.4.4"           # Google
+    "9.9.9.9"           # Quad9
+    "149.112.112.112"   # Quad9
+    "208.67.222.222"    # OpenDNS
+    "208.67.220.220"    # OpenDNS
+)
