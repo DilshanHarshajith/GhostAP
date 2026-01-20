@@ -165,8 +165,6 @@ parse_arguments() {
                     shift 2
                 else
                     shift
-                else
-                    shift
                 fi
                 ;;
             --spoof-target)
