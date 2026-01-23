@@ -55,7 +55,7 @@ get_wifi_ssids() {
     [[ -n "$ssid_line" ]] && ssids+=("$ssid_line")
   done < <(sudo iwlist "$interface" scan | grep 'ESSID:' | sed -e 's/.*ESSID:"\(.*\)"/\1/')
 
-  echo "${ssids[@]}"
+  printf '%s\n' "${ssids[@]}"
 }
 
 get_ap_info() {
