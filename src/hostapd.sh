@@ -83,10 +83,21 @@ configure_hostapd() {
         DEFAULTS[PASSWORD]=""
     fi
 
-    DEFAULTS[SSID]="${ssid}"
-    DEFAULTS[CHANNEL]="${channel}"
-    DEFAULTS[SECURITY]="${security}"
-    DEFAULTS[PASSWORD]="${password}"
+    if [[ -z "${ARG[SSID]}" ]]; then
+        DEFAULTS[SSID]="${ssid}"
+    fi
+
+    if [[ -z "${ARG[CHANNEL]}" ]]; then
+        DEFAULTS[CHANNEL]="${channel}"
+    fi
+
+    if [[ -z "${ARG[SECURITY]}" ]]; then
+        DEFAULTS[SECURITY]="${security}"
+    fi
+
+    if [[ -z "${ARG[PASSWORD]}" ]]; then
+        DEFAULTS[PASSWORD]="${password}"
+    fi
 
     cat > "${config_file}" << EOF
 interface=${INTERFACE}

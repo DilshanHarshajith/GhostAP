@@ -40,7 +40,11 @@ configure_proxy() {
             "Upstream Proxy"*)          proxy_mode="TRANSPARENT_UPSTREAM" ;;
             "Remote Forwarding"*)       proxy_mode="REMOTE_DNAT" ;;
         esac
-        DEFAULTS[PROXY_MODE]="${proxy_mode}"
+        
+        # Only set if not already set by arg (double check, though the outer if checks this too)
+        if [[ -z "${ARG[PROXY_MODE]}" ]]; then
+             DEFAULTS[PROXY_MODE]="${proxy_mode}"
+        fi
     fi
 
     if [[ "${proxy_mode}" == "TRANSPARENT_LOCAL" && ${INTERACTIVE_MODE} == true ]]; then

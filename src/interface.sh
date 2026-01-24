@@ -79,8 +79,19 @@ configure_clone(){
     }
 
     IFS="|" read -r ssid channel mac < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${INTERFACE}")
-    DEFAULTS[SSID]="$ssid"
-    DEFAULTS[CHANNEL]="$channel"
+    
+    if [[ -z "${ARG[SSID]}" ]]; then
+        DEFAULTS[SSID]="$ssid"
+    else
+        log "Preserving specified SSID: ${DEFAULTS[SSID]} (ignoring clone SSID: $ssid)"
+    fi
+
+    if [[ -z "${ARG[CHANNEL]}" ]]; then
+        DEFAULTS[CHANNEL]="$channel"
+    else
+        log "Preserving specified Channel: ${DEFAULTS[CHANNEL]} (ignoring clone Channel: $channel)"
+    fi
+    
     DEFAULTS[MAC]="$mac"
 
     log "Cloning interface ${INTERFACE} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}"

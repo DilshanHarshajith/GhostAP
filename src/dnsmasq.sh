@@ -49,8 +49,13 @@ configure_dhcp() {
             done
         fi
         
-        DEFAULTS[SUBNET]="${subnet_oct}"
-        DEFAULTS[DNS]="${dns}"
+        if [[ -z "${ARG[SUBNET]}" ]]; then
+            DEFAULTS[SUBNET]="${subnet_oct}"
+        fi
+        
+        if [[ -z "${ARG[DNS]}" ]]; then
+            DEFAULTS[DNS]="${dns}"
+        fi
     fi
     
     if { ! [[ "${subnet_oct}" =~ ^[0-9]+$ ]] || ! ((subnet_oct >= 0 && subnet_oct <= 255)); }; then
