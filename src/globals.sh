@@ -5,6 +5,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 CONFIG_DIR="${SCRIPT_DIR}/Config"
+SETUP_DIR="${SCRIPT_DIR}/Setups"
 LOG_DIR="${SCRIPT_DIR}/Logs"
 OUT_DIR="${SCRIPT_DIR}/Output"
 TMP_DIR="${SCRIPT_DIR}/Temp"

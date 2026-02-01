@@ -36,7 +36,7 @@ load_config() {
 save_config() {
     [[ "${SAVE_CONFIG}" == true ]] || return 0
     log "Saving current configuration..."
-    local config_file="${CONFIG_DIR}/${CONFIG_NAME:-default}.conf"
+    local config_file="${SETUP_DIR}/${CONFIG_NAME:-default}.conf"
     log "Saving configuration to ${config_file}"
     
 cat > "${config_file}" << EOF

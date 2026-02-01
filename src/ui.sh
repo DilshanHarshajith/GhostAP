@@ -67,6 +67,7 @@ show_status() {
     fi
     echo "Running PIDs: ${PIDS[*]}"
     echo "Config Dir: ${CONFIG_DIR}"
+    echo "Setup Dir: ${SETUP_DIR}"
     echo "Log Dir: ${LOG_DIR}"
     echo "Temp Dir: ${TMP_DIR}"
     echo "Out Dir: ${OUT_DIR}"
