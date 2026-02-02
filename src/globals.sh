@@ -30,6 +30,7 @@ declare -g DNSMASQ_PID_FILE="${TMP_DIR}/dnsmasq.pid"
 
 DIRS=(
     "${CONFIG_DIR}"
+    "${SETUP_DIR}"
     "${LOG_DIR}"
     "${OUT_DIR}"
     "${TMP_DIR}"
