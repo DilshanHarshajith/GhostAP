@@ -22,7 +22,9 @@ declare -g DNSMASQ_LOG="${LOG_DIR}/dnsmasq.log"
 declare -g REDSOCKS_LOG="${LOG_DIR}/redsocks.log"
 declare -g MITMPROXY_LOG="${LOG_DIR}/mitmproxy.log"
 declare -g TSHARK_LOG="${LOG_DIR}/tshark.log"
-declare -g SSLKEYLOGFILE="${LOG_DIR}/sslkey.log"
+
+# SSLKeylog file
+declare -g SSLKEYLOGFILE="${OUT_DIR}/sslkey.log"
 
 # PID Files
 declare -g DNSMASQ_PID_FILE="${TMP_DIR}/dnsmasq.pid"
