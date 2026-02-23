@@ -67,10 +67,9 @@ main() {
     configure_doh_blocking
     configure_packet_capture
 
-
-    start_services
+    save_config
     
-    save_config    
+    start_services    
     
     show_status
 

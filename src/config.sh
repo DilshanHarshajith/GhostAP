@@ -34,6 +34,14 @@ load_config() {
 }
 
 save_config() {
+    if [[ "${SAVE_CONFIG}" != true ]]; then
+        read -r -p "Save configuration? [y/N]: " save
+        if [[ "${save}" =~ ^[Yy]$ ]]; then
+            SAVE_CONFIG=true
+            read -r -p "Enter configuration name: " CONFIG_NAME
+        fi
+    fi
+ 
     [[ "${SAVE_CONFIG}" == true ]] || return 0
     log "Saving current configuration..."
     local config_file="${SETUP_DIR}/${CONFIG_NAME:-default}.conf"
