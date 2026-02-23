@@ -118,7 +118,7 @@ check_root() {
 
 check_dependencies() {
     local deps=(hostapd dnsmasq iw iptables ip)
-    local optional_deps=(tshark redsocks mitmproxy mitmweb mitmdump python3)
+    local optional_deps=(tshark redsocks python3)
     local missing=()
     local missing_optional=()
     
@@ -186,19 +186,17 @@ Features:
   --block-doh                Block DNS-over-HTTPS to enforce DNS spoofing
   --clone [ssid]             Clone an existing network (optional: specify SSID)
 
-
-Proxy & MITM:
+Proxy & Interception:
   --proxy-mode <mode>        Proxy Mode: TRANSPARENT_LOCAL, TRANSPARENT_UPSTREAM, REMOTE_DNAT
-  --mitm-auto [true|false]   Automatically start mitmproxy (default: true)
   
-  Legacy/Shortcut Proxy Flags:
-  --mitmlocal                Shortcut for --proxy-mode TRANSPARENT_LOCAL
-  --mitmremote               Shortcut for --proxy-mode REMOTE_DNAT
+  Shortcut Proxy Flags:
+  --local-proxy              Shortcut for --proxy-mode TRANSPARENT_LOCAL
+  --remote-proxy             Shortcut for --proxy-mode REMOTE_DNAT
   --proxy                    Shortcut for --proxy-mode TRANSPARENT_UPSTREAM
 
-  Upstream/Remote Proxy Options:
+  Proxy Options:
   --proxy-host <ip>          Upstream Proxy IP or Remote Host IP
-  --proxy-port <port>        Upstream Proxy Port or Remote Host Port
+  --proxy-port <port>        Proxy Port (default: 8080)
   --proxy-type <type>        Proxy Type: http, socks4, socks5
   --proxy-user <user>        Proxy Username
   --proxy-pass <pass>        Proxy Password
@@ -212,7 +210,7 @@ Global:
 Examples:
   $(basename "$0") -i wlan0 -s MyAP --internet
   $(basename "$0") --int
-  $(basename "$0") -i wlan0 --mitmlocal --spoof google.com
+  $(basename "$0") -i wlan0 --local-proxy --spoof google.com
 EOF
 }
 

@@ -20,7 +20,6 @@ declare -g REDSOCKS_CONF="${CONFIG_DIR}/redsocks.conf"
 declare -g HOSTAPD_LOG="${LOG_DIR}/hostapd.log"
 declare -g DNSMASQ_LOG="${LOG_DIR}/dnsmasq.log"
 declare -g REDSOCKS_LOG="${LOG_DIR}/redsocks.log"
-declare -g MITMPROXY_LOG="${LOG_DIR}/mitmproxy.log"
 declare -g TSHARK_LOG="${LOG_DIR}/tshark.log"
 
 # SSLKeylog file
@@ -70,8 +69,7 @@ declare -A DEFAULTS=(
     [PROXY_PORT]=""
     [PROXY_BACKEND]=""
     [PROXY_MODE]=""
-    [START_MITM_AUTO]=true
-    [MITM_LOCATION]=""
+    [PROXY_LOCATION]=""
     [PROXY_TYPE]=""
     [PROXY_USER]=""
     [PROXY_PASS]=""

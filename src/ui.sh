@@ -62,8 +62,7 @@ show_status() {
     echo "Packet Capture: ${DEFAULTS[PACKET_CAPTURE]}"
     echo "Proxy Enabled: ${DEFAULTS[PROXY_ENABLED]}"
     if [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]]; then
-        echo "Proxy: ${DEFAULTS[PROXY_TYPE]}://${DEFAULTS[PROXY_HOST]}:${DEFAULTS[PROXY_PORT]} (Mode: ${DEFAULTS[PROXY_MODE]})"
-        echo "MITM Auto-start: ${DEFAULTS[START_MITM_AUTO]}"
+        echo "Proxy: ${DEFAULTS[PROXY_TYPE]:-http}://${DEFAULTS[PROXY_HOST]:-127.0.0.1}:${DEFAULTS[PROXY_PORT]} (Mode: ${DEFAULTS[PROXY_MODE]})"
     fi
     echo "Running PIDs: ${PIDS[*]}"
     echo "Config Dir: ${CONFIG_DIR}"
@@ -113,13 +112,12 @@ Feature Options:
                               Optional domains format: domain.com=192.168.1.1|domain2.com=237.84.2.178
 
 Proxy Options:
-  --mitmlocal                 Set proxy backend to mitmproxy with LOCAL location
-  --mitmremote                Set proxy backend to mitmproxy with REMOTE location
-  --proxy                     Set proxy backend to redsocks
+  --local-proxy                Shortcut for --proxy-mode TRANSPARENT_LOCAL
+  --remote-proxy               Shortcut for --proxy-mode REMOTE_DNAT
+  --proxy                      Shortcut for --proxy-mode TRANSPARENT_UPSTREAM
   --proxy-mode MODE           Proxy mode (TRANSPARENT_LOCAL/TRANSPARENT_UPSTREAM/REMOTE_DNAT)
-  --mitm-auto [true/false]    Automatically start mitmproxy (default: true)
   --proxy-host HOST           Proxy server host/IP
-  --proxy-port PORT           Proxy server port
+  --proxy-port PORT           Proxy server port (default: 8080)
   --proxy-type TYPE           Proxy type (http/socks4/socks5)
   --proxy-user USER           Proxy username
   --proxy-pass PASS           Proxy password
@@ -141,8 +139,8 @@ Examples:
   # Save configuration for later use
   sudo $0 -i wlan0 -s "MyAP" --security wpa2 -p "secret" --save myconfig
   
-  # mitmproxy local interception
-  sudo $0 --mitmlocal -s "InterceptAP"
+  # Local transparent interception
+  sudo $0 --local-proxy -s "InterceptAP"
   
   # Full featured access point
   sudo $0 -i wlan0 -s "FullAP" -c 11 --security wpa3 -p "strongpass" \

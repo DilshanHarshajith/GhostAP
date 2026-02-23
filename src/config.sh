@@ -62,8 +62,7 @@ CLONE_SSID="${DEFAULTS[CLONE_SSID]}"
 PROXY_ENABLED="${DEFAULTS[PROXY_ENABLED]}"
 PROXY_MODE="${DEFAULTS[PROXY_MODE]}"
 PROXY_BACKEND="${DEFAULTS[PROXY_BACKEND]}"
-MITM_LOCATION="${DEFAULTS[MITM_LOCATION]}"
-START_MITM_AUTO="${DEFAULTS[START_MITM_AUTO]}"
+PROXY_LOCATION="${DEFAULTS[PROXY_LOCATION]}"
 PROXY_HOST="${DEFAULTS[PROXY_HOST]}"
 PROXY_PORT="${DEFAULTS[PROXY_PORT]}"
 PROXY_TYPE="${DEFAULTS[PROXY_TYPE]}"
@@ -193,36 +192,18 @@ parse_arguments() {
                     shift
                 fi
                 ;;
-            --mitm-auto)
-                DEFAULTS[START_MITM_AUTO]=true
-                ARG[START_MITM_AUTO]=1
-                if [[ -n "${2:-}" && "$2" =~ ^(true|false)$ ]]; then
-                    DEFAULTS[START_MITM_AUTO]="$2"
-                    shift 2
-                else
-                    shift
-                fi
-                ;;
-            --proxy-mode)
-                [[ -z "${2:-}" ]] && error "Missing argument for $1"
-                DEFAULTS[PROXY_MODE]="$2"
-                ARG[PROXY_MODE]=1
-                shift 2
-                ;;
-            # Legacy/Shortcut Mappings
-            --mitmlocal)
+            --local-proxy)
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_LOCAL"
                 DEFAULTS[PROXY_ENABLED]=true
                 ARG[PROXY_MODE]=1
-                # Keep these for now to ensure proxy.sh works, though we should transition to just PROXY_MODE
-                DEFAULTS[MITM_LOCATION]="LOCAL" 
+                DEFAULTS[PROXY_LOCATION]="LOCAL" 
                 shift
                 ;;
-            --mitmremote)
+            --remote-proxy)
                 DEFAULTS[PROXY_MODE]="REMOTE_DNAT"
                 DEFAULTS[PROXY_ENABLED]=true
                 ARG[PROXY_MODE]=1
-                DEFAULTS[MITM_LOCATION]="REMOTE"
+                DEFAULTS[PROXY_LOCATION]="REMOTE"
                 shift
                 ;;
             --proxy)
