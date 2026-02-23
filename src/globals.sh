@@ -44,11 +44,11 @@ for dir in "${DIRS[@]}"; do
             echo "Failed to create directory: ${dir}" >&2
             exit 1
         }
-        chmod -R 755 "${dir}" || {
-            echo "Failed to set permissions for directory: ${dir}" >&2
-            exit 1
-        }
     fi
+    chmod -R 755 "${dir}" || {
+        echo "Failed to set permissions for directory: ${dir}" >&2
+        exit 1
+    }
 done
 
 declare -A DEFAULTS=(
