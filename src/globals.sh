@@ -75,10 +75,10 @@ declare -A DEFAULTS=(
     [PROXY_PASS]=""
     [CLONE]=false
     [CLONE_SSID]=""
-    [CLONE_SSID]=""
     [SPOOF_DOMAINS]=""
     [SPOOF_TARGET_IP]=""
     [BLOCK_DOH]=false
+    [MAC]=""
 )
 
 declare -A ARG

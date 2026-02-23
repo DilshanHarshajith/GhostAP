@@ -58,6 +58,7 @@ main() {
     configure_interface
     configure_clone
     configure_hostapd
+    configure_mac_in_interactive
     configure_dhcp
 
 

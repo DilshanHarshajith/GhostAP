@@ -104,6 +104,7 @@ interface=${INTERFACE}
 driver=nl80211
 ssid=${ssid}
 channel=${channel}
+$( [[ -n "${DEFAULTS[MAC]}" ]] && echo "bssid=${DEFAULTS[MAC]}" )
 hw_mode=g
 ieee80211n=1
 wmm_enabled=1

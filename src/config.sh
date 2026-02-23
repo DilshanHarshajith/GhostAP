@@ -61,6 +61,7 @@ INTERNET_SHARING="${DEFAULTS[INTERNET_SHARING]}"
 SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
 DNS_SPOOFING="${DEFAULTS[DNS_SPOOFING]}"
 PACKET_CAPTURE="${DEFAULTS[PACKET_CAPTURE]}"
+MAC="${DEFAULTS[MAC]}"
 
 # Cloning Options
 CLONE="${DEFAULTS[CLONE]}"
@@ -124,6 +125,17 @@ parse_arguments() {
                 ARG[CHANNEL]=1
                 shift 2
                 ;;
+            -m|--mac)
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                if validate_mac "$2"; then
+                    DEFAULTS[MAC]="$2"
+                    ARG[MAC]=1
+                else
+                    error "Invalid MAC address format: $2 (expected XX:XX:XX:XX:XX:XX)"
+                fi
+                shift 2
+                ;;
+
             --security)
                 [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[SECURITY]="$2"

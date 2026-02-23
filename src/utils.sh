@@ -158,10 +158,15 @@ validate_channel() {
 }
 
 validate_port() {
-    local port="$1"
-    [[ "${port}" =~ ^[0-9]+$ ]] || return 1
     ((port >= 1 && port <= 65535)) || return 1
 }
+
+validate_mac() {
+    local mac="$1"
+    [[ "${mac}" =~ ^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$ ]] || return 1
+    return 0
+}
+
 
 
 show_usage() {
@@ -178,6 +183,8 @@ Network Configuration:
   --dns <ip>                 Custom DNS server (default: 8.8.8.8)
   --internet                 Enable Internet Sharing (NAT)
   -si, --source-interface    Source interface for Internet (e.g., eth0)
+  -m, --mac <mac>            Custom MAC address for AP (BSSID)
+
 
 Features:
   --capture                  Enable Packet Capture (tshark)

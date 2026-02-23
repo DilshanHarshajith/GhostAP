@@ -42,6 +42,23 @@ configure_interface() {
     fi
 }
 
+configure_mac_in_interactive() {
+    if [[ ${INTERACTIVE_MODE} == true ]]; then
+        if [[ -z "${ARG[MAC]}" && "${DEFAULTS[CLONE]}" != true ]]; then
+            read -r -p "Custom MAC address for AP (leave blank for default): " user_mac
+            if [[ -n "${user_mac}" ]]; then
+                if validate_mac "${user_mac}"; then
+                    DEFAULTS[MAC]="${user_mac}"
+                    log "Custom MAC address set: ${DEFAULTS[MAC]}"
+                else
+                    warn "Invalid MAC address format. Using default."
+                fi
+            fi
+        fi
+    fi
+}
+
+
 configure_clone(){
     if [[ ${INTERACTIVE_MODE} == true ]]; then
         if [[ -z "${ARG[CLONE]}" ]]; then
@@ -92,7 +109,12 @@ configure_clone(){
         log "Preserving specified Channel: ${DEFAULTS[CHANNEL]} (ignoring clone Channel: $channel)"
     fi
     
-    DEFAULTS[MAC]="$mac"
+    if [[ -z "${ARG[MAC]}" ]]; then
+        DEFAULTS[MAC]="$mac"
+    else
+        log "Preserving specified MAC: ${DEFAULTS[MAC]} (ignoring clone MAC: $mac)"
+    fi
+
 
     log "Cloning interface ${INTERFACE} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}"
 }
