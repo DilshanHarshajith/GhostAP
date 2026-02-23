@@ -34,7 +34,7 @@ load_config() {
 }
 
 save_config() {
-    if [[ "${SAVE_CONFIG}" != true ]]; then
+    if [[ "${SAVE_CONFIG}" != true && "${INTERACTIVE_MODE}" = true ]]; then
         read -r -p "Save configuration? [y/N]: " save
         if [[ "${save}" =~ ^[Yy]$ ]]; then
             SAVE_CONFIG=true
