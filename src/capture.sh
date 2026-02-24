@@ -94,3 +94,26 @@ enable_packet_capture(){
         log "Packet capture started successfully: ${CAPTURE_FILE} (PID: ${TSHARK_PID})"
     fi
 }
+
+move_capture_file() {
+    if [[ "${DEFAULTS[PACKET_CAPTURE]}" == true ]]; then
+        # Move capture file from /tmp to Output folder
+        if [[ -n "${TMP_CAPTURE}" ]] && [[ -f "${TMP_CAPTURE}" ]]; then
+            log "Tshark process ${TSHARK_PID} ended, moving capture to ${CAPTURE_FILE}"
+            if mv "${TMP_CAPTURE}" "${CAPTURE_FILE}" 2>/dev/null; then
+                # Make the file readable by all users (not just root)
+                chmod 644 "${CAPTURE_FILE}" 2>/dev/null || true
+                log "Capture file moved to: ${CAPTURE_FILE}"
+                local file_size
+                file_size=$(stat -f%z "${CAPTURE_FILE}" 2>/dev/null || stat -c%s "${CAPTURE_FILE}" 2>/dev/null || echo "unknown")
+                log "Capture file size: ${file_size} bytes"
+            else
+                warn "Failed to move capture file from ${TMP_CAPTURE} to ${CAPTURE_FILE}"
+            fi
+        elif [[ -n "${TMP_CAPTURE}" ]] && [[ ! -f "${TMP_CAPTURE}" ]]; then
+            warn "Capture file ${TMP_CAPTURE} does not exist (tshark may have failed to start)"
+        elif [[ -z "${TMP_CAPTURE}" ]]; then
+            debug "No capture file path was set (packet capture may not have been enabled)"
+        fi
+    fi
+}
