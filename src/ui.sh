@@ -146,7 +146,7 @@ Examples:
   sudo $0 -i wlan0 -s "FullAP" -c 11 --security wpa3 -p "strongpass" \
          --internet -si eth0 --capture --dns 1.1.1.1 --subnet 20
 
-For more information, visit: https://github.com/example/GhostAP
+For more information, visit: https://github.com/DilshanHarshajith/GhostAP
 EOF
 }
 
