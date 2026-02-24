@@ -107,7 +107,7 @@ Network Options:
 Feature Options:
 
   --internet                  Enable internet sharing
-  --capture                   Enable packet capture
+  --capture [FILE]            Enable packet capture
   --spoof [DOMAINS]           Enable DNS spoofing
                               Optional domains format: domain.com=192.168.1.1|domain2.com=237.84.2.178
 
@@ -127,7 +127,7 @@ Examples:
   sudo $0 -i wlan0 -s "MyAP" -c 6 --security wpa2 -p "password123"
   
   # Access point with internet sharing and packet capture
-  sudo $0 --internet --capture -si eth0
+  sudo $0 --internet --capture "capture.pcap" -si eth0
   
   # Access point with proxy routing
   sudo $0 -i wlan0 --proxy --proxy-host 127.0.0.1 --proxy-port 8080 --proxy-type http
