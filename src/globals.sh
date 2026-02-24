@@ -84,7 +84,7 @@ declare -A ARG
 
 declare -g INTERACTIVE_MODE=false
 declare -g SAVE_CONFIG=false
-declare -g CONFIG_FILE=""
+declare -g CONFIG_FILE="${SETUP_DIR}/default.conf"
 declare -g INTERFACE="${DEFAULTS[INTERFACE]}"
 declare -g SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
 declare -g SUBNET_OCT="${DEFAULTS[SUBNET]}"
