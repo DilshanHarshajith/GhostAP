@@ -76,7 +76,7 @@ show_status() {
     echo "Access Point is running. Press Ctrl+C to stop."
     echo "Monitor logs: tail -f ${LOG_DIR}/GhostAP.log"
     if [[ "${DEFAULTS[PACKET_CAPTURE]}" == true ]]; then
-        echo "View captures: ls -la ${OUT_DIR}/*.pcap"
+        echo "View captures: ls -la \"${DEFAULTS[CAPTURE_FILE]}\""
     fi
 }
 

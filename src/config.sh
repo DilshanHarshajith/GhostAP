@@ -175,7 +175,13 @@ parse_arguments() {
             --capture)
                 DEFAULTS[PACKET_CAPTURE]=true
                 ARG[PACKET_CAPTURE]=1
-                shift
+                if [[ -n "${2:-}" ]]; then
+                    DEFAULTS[CAPTURE_FILE]="$2"
+                    ARG[CAPTURE_FILE]=1
+                    shift 2
+                else
+                    shift
+                fi
                 ;;
             --spoof)
                 DEFAULTS[DNS_SPOOFING]=true

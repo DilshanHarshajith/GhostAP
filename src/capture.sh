@@ -11,6 +11,9 @@ configure_packet_capture() {
             read -r -p "Enable packet capture? (y/N): " enable_capture
             if [[ "${enable_capture}" =~ ^[Yy]$ ]]; then
                 DEFAULTS[PACKET_CAPTURE]=true
+                read -r -p "Capture file(Default: ${DEFAULTS[CAPTURE_FILE]}): " capture_file
+                [[ -n "${capture_file}" ]] && DEFAULTS[CAPTURE_FILE]="${capture_file}"
+                log "Capture file set to: ${DEFAULTS[CAPTURE_FILE]}"
                 log "Packet Capture Enabled."
             elif [[ "${enable_capture}" =~ ^[Nn]$ ]]; then
                 DEFAULTS[PACKET_CAPTURE]=false
@@ -47,11 +50,9 @@ enable_packet_capture(){
             return 1
         fi
 
-        local base_name
-        base_name="capture-$(date +%Y%m%d-%H%M%S).pcap"
         # Write to /tmp first (proven to work), then move to Output during cleanup
-        TMP_CAPTURE="/tmp/${base_name}"
-        CAPTURE_FILE="${OUT_DIR}/${base_name}"
+        TMP_CAPTURE="/tmp/$(basename "${DEFAULTS[CAPTURE_FILE]}")"
+        CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 
         local capture_log="${TSHARK_LOG}"
         local capture_err="${LOG_DIR}/tshark_error.log"

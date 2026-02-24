@@ -63,6 +63,7 @@ declare -A DEFAULTS=(
     [INTERNET_SHARING]=false
     [DNS_SPOOFING]=false
     [PACKET_CAPTURE]=false
+    [CAPTURE_FILE]="${OUT_DIR}/capture-$(date +%Y%m%d-%H%M%S).pcap"
 
     [PROXY_ENABLED]=false
     [PROXY_HOST]=""
@@ -90,7 +91,7 @@ declare -g SUBNET_OCT="${DEFAULTS[SUBNET]}"
 declare -g SPOOF_DOMAINS=""
 
 # Packet Capture Globals
-declare -g CAPTURE_FILE=""
+declare -g CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 declare -g TMP_CAPTURE=""
 declare -g TSHARK_PID=""
 
