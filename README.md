@@ -138,6 +138,7 @@ sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 | `--password PASSWORD`   | WiFi password (for WPA2/WPA3)  |
 | `--subnet OCTET`        | Subnet third octet (0-255)     |
 | `--dns IP`              | DNS server IP address          |
+| `-m, --mac MAC`         | MAC address to use             |
 
 ### Feature Options
 
