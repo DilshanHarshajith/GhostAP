@@ -45,33 +45,12 @@ configure_proxy() {
         fi
     fi
 
-    local backend_tool=""
     case "${proxy_mode}" in
-        "TRANSPARENT_LOCAL")
-            backend_tool="local"
-            ;;
-        "TRANSPARENT_UPSTREAM")
-            backend_tool="redsocks"
-            ;;
-        "REMOTE_DNAT")
-            backend_tool="none" # Just iptables
+        "TRANSPARENT_LOCAL"|"TRANSPARENT_UPSTREAM"|"REMOTE_DNAT")
             ;;
         *)
             # Fallback/Default if arguments were odd
-            if [[ -n "${DEFAULTS[PROXY_BACKEND]}" ]]; then
-                 # Logic for backwards compatibility or manual CLI args
-                 if [[ "${DEFAULTS[PROXY_BACKEND]}" == "mitmproxy" || "${DEFAULTS[PROXY_BACKEND]}" == "local" ]]; then
-                      if [[ "${DEFAULTS[PROXY_LOCATION]}" == "REMOTE" ]]; then
-                          proxy_mode="REMOTE_DNAT"
-                      else
-                          proxy_mode="TRANSPARENT_LOCAL"
-                      fi
-                 elif [[ "${DEFAULTS[PROXY_BACKEND]}" == "redsocks" ]]; then
-                      proxy_mode="TRANSPARENT_UPSTREAM"
-                 fi
-            else
-                proxy_mode="TRANSPARENT_LOCAL" # Default
-            fi
+            proxy_mode="TRANSPARENT_LOCAL" # Default
             ;;
     esac
     DEFAULTS[PROXY_MODE]="${proxy_mode}"
@@ -158,17 +137,8 @@ setup_proxy() {
             setup_remote_dnat
             ;;
         *)
-            # Try to infer from legacy vars if MODE not set
-            local backend="${DEFAULTS[PROXY_BACKEND]:-local}"
-            if [[ "${backend}" == "mitmproxy" || "${backend}" == "local" ]]; then
-                 if [[ "${DEFAULTS[PROXY_LOCATION]}" == "REMOTE" ]]; then
-                    setup_remote_dnat
-                 else
-                    setup_local_transparent_proxy
-                 fi
-            elif [[ "${backend}" == "redsocks" ]]; then
-                setup_redsocks_upstream
-            fi
+            # Default to local transparent proxy
+            setup_local_transparent_proxy
             ;;
     esac
 }
