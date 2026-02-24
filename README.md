@@ -89,6 +89,8 @@ sudo ./GhostAP.sh -i wlan0 -s "MySecureAP" -c 6 --security wpa2 --password "pass
 
 ```bash
 sudo ./GhostAP.sh -i wlan0 -s "MonitorAP" --capture --monitor
+# or
+sudo ./GhostAP.sh -i wlan0 -s "MonitorAP" --capture "capture.pcap" --monitor
 ```
 
 #### Access Point with Proxy Routing
@@ -146,7 +148,7 @@ sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 | ------------------- | ------------------------------------------------------------------- |
 | `--monitor`         | Enable monitor mode                                                 |
 | `--internet`        | Enable internet sharing                                             |
-| `--capture`         | Enable packet capture                                               |
+| `--capture [FILE]`  | Enable packet capture                                               |
 | `--spoof "DOMAINS"` | Enable DNS spoofing (Format: `dom.com=1.2.3.4\|dom2.com\|...`)      |
 | `--spoof-target IP` | Default target IP for DNS spoofing (when domain has no explicit IP) |
 | `--block-doh`       | Block DNS-over-HTTPS to enforce DNS spoofing                        |
