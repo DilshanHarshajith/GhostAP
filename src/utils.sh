@@ -139,7 +139,10 @@ validate_channel() {
 }
 
 validate_port() {
+    local port="$1"
+    [[ "${port}" =~ ^[0-9]+$ ]] || return 1
     ((port >= 1 && port <= 65535)) || return 1
+    return 0
 }
 
 validate_mac() {
