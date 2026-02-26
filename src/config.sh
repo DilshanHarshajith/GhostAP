@@ -22,7 +22,6 @@ load_config() {
             # Priority: CLI arguments (ARG) > Config file (CONFIG_FILE) > Defaults
             if [[ -z "${ARG[${key}]}" ]]; then
                 DEFAULTS[${key}]="${value}"
-                ARG[${key}]=1
                 debug "Loaded config from file: ${key}=${value}"
             else
                 debug "Skipping config file value for ${key} (already set via CLI)"
@@ -34,17 +33,18 @@ load_config() {
 }
 
 save_config() {
+    local default_config_name=$(basename "${CONFIG_FILE}" .conf)
     if [[ "${SAVE_CONFIG}" != true && "${INTERACTIVE_MODE}" = true ]]; then
         read -r -p "Save configuration? [y/N]: " save
         if [[ "${save}" =~ ^[Yy]$ ]]; then
             SAVE_CONFIG=true
-            read -r -p "Enter configuration name: " CONFIG_NAME
+            read -r -p "Enter configuration name [default: ${default_config_name}]: " CONFIG_NAME
         fi
     fi
  
     [[ "${SAVE_CONFIG}" == true ]] || return 0
     log "Saving current configuration..."
-    local config_file="${SETUP_DIR}/${CONFIG_NAME:-default}.conf"
+    local config_file="${SETUP_DIR}/${CONFIG_NAME:-${default_config_name}}.conf"
     log "Saving configuration to ${config_file}"
     
 cat > "${config_file}" << EOF
@@ -61,6 +61,7 @@ INTERNET_SHARING="${DEFAULTS[INTERNET_SHARING]}"
 SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
 DNS_SPOOFING="${DEFAULTS[DNS_SPOOFING]}"
 PACKET_CAPTURE="${DEFAULTS[PACKET_CAPTURE]}"
+CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 MAC="${DEFAULTS[MAC]}"
 
 # Cloning Options
@@ -221,21 +222,18 @@ parse_arguments() {
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_LOCAL"
                 DEFAULTS[PROXY_ENABLED]=true
                 ARG[PROXY_MODE]=1
-                DEFAULTS[PROXY_LOCATION]="LOCAL" 
                 shift
                 ;;
             --remote-proxy)
                 DEFAULTS[PROXY_MODE]="REMOTE_DNAT"
                 DEFAULTS[PROXY_ENABLED]=true
                 ARG[PROXY_MODE]=1
-                DEFAULTS[PROXY_LOCATION]="REMOTE"
                 shift
                 ;;
             --proxy)
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_UPSTREAM"
                 DEFAULTS[PROXY_ENABLED]=true
                 ARG[PROXY_MODE]=1
-                DEFAULTS[PROXY_BACKEND]="redsocks"
                 shift
                 ;;
             --proxy-host)
