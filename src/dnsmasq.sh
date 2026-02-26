@@ -157,6 +157,7 @@ configure_dns_spoof() {
     fi
 
     log "DNS Spoofing Enabled. (configure manually in dnsmasq.conf if needed)"
+    configure_doh_blocking
 }
 
 configure_doh_blocking() {

@@ -65,7 +65,6 @@ main() {
     configure_internet_sharing
     configure_proxy
     configure_dns_spoof
-    configure_doh_blocking
     configure_packet_capture
 
     save_config
