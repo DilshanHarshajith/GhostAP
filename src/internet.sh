@@ -69,11 +69,15 @@ enable_internet_sharing() {
                 warn "Failed to enable IP forwarding"
             fi
             
-            IPTABLES_RULES+=(
-                "iptables -t nat -I POSTROUTING -o ${SOURCE_INTERFACE} -j MASQUERADE"
-                "iptables -I FORWARD -i ${SOURCE_INTERFACE} -o ${INTERFACE} -m state --state RELATED,ESTABLISHED -j ACCEPT"
-                "iptables -I FORWARD -i ${INTERFACE} -o ${SOURCE_INTERFACE} -j ACCEPT"
-            )
+            if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+                log "VPN routing is active. Skipping cleartext MASQUERADE/FORWARD rules to prevent VPN leaks."
+            else
+                IPTABLES_RULES+=(
+                    "iptables -t nat -I POSTROUTING -o ${SOURCE_INTERFACE} -j MASQUERADE"
+                    "iptables -I FORWARD -i ${SOURCE_INTERFACE} -o ${INTERFACE} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+                    "iptables -I FORWARD -i ${INTERFACE} -o ${SOURCE_INTERFACE} -j ACCEPT"
+                )
+            fi
             
             if command -v tc >/dev/null; then
                 tc qdisc add dev "${INTERFACE}" root handle 1: htb default 30 2>/dev/null || true

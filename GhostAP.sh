@@ -17,7 +17,7 @@ if [[ -d "${SRC_DIR}" ]]; then
     source "${SRC_DIR}/globals.sh" || { echo "Failed to load globals.sh"; exit 1; }
     
     # Source other modules
-    for module in utils network config ui interface hostapd dnsmasq internet proxy capture services; do
+    for module in utils network config ui interface vpn hostapd dnsmasq internet proxy capture services; do
         if [[ -f "${SRC_DIR}/${module}.sh" ]]; then
             source "${SRC_DIR}/${module}.sh" || { echo "Failed to load ${module}.sh"; exit 1; }
         else
@@ -61,7 +61,7 @@ main() {
     configure_mac_in_interactive
     configure_dhcp
 
-
+    configure_vpn
     configure_internet_sharing
     configure_proxy
     configure_dns_spoof

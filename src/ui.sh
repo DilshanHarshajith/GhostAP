@@ -58,6 +58,13 @@ show_status() {
     echo "DHCP Range: 192.168.${SUBNET_OCT}.10-250"
     echo "DNS Server: ${DEFAULTS[DNS]}"
     echo "Internet Sharing(From): ${SOURCE_INTERFACE:-Disabled}"
+
+    if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+        echo "VPN Routing: Enabled (${VPN_INTERFACE:-Pending}) - Config: ${DEFAULTS[VPN_CONFIG]:-None}"
+    else
+        echo "VPN Routing: Disabled"
+    fi
+
     echo "DNS Spoofing: ${DEFAULTS[DNS_SPOOFING]}"
     echo "Packet Capture: ${DEFAULTS[PACKET_CAPTURE]}"
     echo "Proxy Enabled: ${DEFAULTS[PROXY_ENABLED]}"
@@ -107,6 +114,8 @@ Network Options:
 Feature Options:
 
   --internet                  Enable internet sharing
+  --vpn                       Enable VPN routing (requires interactive selection or auto-detect)
+  --vpn-config FILE           Enable VPN and auto-start client with the given config (.ovpn or .conf)
   --capture [FILE]            Enable packet capture
   --spoof [DOMAINS]           Enable DNS spoofing
                               Optional domains format: domain.com=192.168.1.1|domain2.com=237.84.2.178

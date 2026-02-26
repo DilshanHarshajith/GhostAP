@@ -62,6 +62,8 @@ SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
 DNS_SPOOFING="${DEFAULTS[DNS_SPOOFING]}"
 PACKET_CAPTURE="${DEFAULTS[PACKET_CAPTURE]}"
 MAC="${DEFAULTS[MAC]}"
+VPN_ROUTING="${DEFAULTS[VPN_ROUTING]}"
+VPN_CONFIG="${DEFAULTS[VPN_CONFIG]}"
 
 # Cloning Options
 CLONE="${DEFAULTS[CLONE]}"
@@ -178,6 +180,17 @@ parse_arguments() {
                 if [[ -n "${2:-}" ]]; then
                     DEFAULTS[CAPTURE_FILE]="$2"
                     ARG[CAPTURE_FILE]=1
+                    shift 2
+                else
+                    shift
+                fi
+                ;;
+            --vpn)
+                DEFAULTS[VPN_ROUTING]=true
+                ARG[VPN_ROUTING]=1
+                if [[ -n "${2:-}" && ! "${2:-}" =~ ^- ]]; then
+                    DEFAULTS[VPN_CONFIG]="${2:-}"
+                    ARG[VPN_CONFIG]=1
                     shift 2
                 else
                     shift

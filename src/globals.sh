@@ -65,6 +65,9 @@ declare -A DEFAULTS=(
     [PACKET_CAPTURE]=false
     [CAPTURE_FILE]="${OUT_DIR}/capture-$(date +%Y%m%d-%H%M%S).pcap"
 
+    [VPN_ROUTING]=false
+    [VPN_CONFIG]=""
+
     [PROXY_ENABLED]=false
     [PROXY_HOST]=""
     [PROXY_PORT]=""
