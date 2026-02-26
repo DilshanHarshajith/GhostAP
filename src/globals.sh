@@ -3,11 +3,13 @@
 # Define Project Root
 # SCRIPT_DIR will be the parent directory of this file (src/..) which is the project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKING_DIR="$(pwd)"
 
 CONFIG_DIR="${SCRIPT_DIR}/Config"
 SETUP_DIR="${SCRIPT_DIR}/Setups"
 LOG_DIR="${SCRIPT_DIR}/Logs"
-OUT_DIR="${SCRIPT_DIR}/Output"
+#OUT_DIR="${SCRIPT_DIR}/Output"
+OUT_DIR="${WORKING_DIR}"
 TMP_DIR="${SCRIPT_DIR}/Temp"
 LOG_FILE="${LOG_DIR}/GhostAP.log"
 
