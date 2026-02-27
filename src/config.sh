@@ -65,6 +65,7 @@ CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 MAC="${DEFAULTS[MAC]}"
 VPN_ROUTING="${DEFAULTS[VPN_ROUTING]}"
 VPN_CONFIG="${DEFAULTS[VPN_CONFIG]}"
+VPN_CREDS="${DEFAULTS[VPN_CREDS]}"
 
 # Cloning Options
 CLONE="${DEFAULTS[CLONE]}"
@@ -196,6 +197,12 @@ parse_arguments() {
                 else
                     shift
                 fi
+                ;;
+            --vpn-creds)
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                DEFAULTS[VPN_CREDS]="${2}"
+                ARG[VPN_CREDS]=1
+                shift 2
                 ;;
             --spoof)
                 DEFAULTS[DNS_SPOOFING]=true

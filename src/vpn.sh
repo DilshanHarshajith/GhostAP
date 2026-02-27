@@ -29,7 +29,7 @@ configure_vpn() {
         if [[ "${vpn_config}" == *.ovpn ]]; then
             log "Starting OpenVPN with ${vpn_config}"
             # --route-nopull prevents OpenVPN from hijacking host default route
-            local openvpn_creds
+            local openvpn_creds=${DEFAULTS[VPN_CREDS]}
             local openvpn_cmd=(openvpn --config "$vpn_config" --daemon --writepid "${TMP_DIR}/openvpn.pid" )
 
             if grep -q "^auth-user-pass" "$vpn_config"; then
@@ -171,4 +171,5 @@ cleanup_vpn() {
         ip rule del iif "${INTERFACE}" lookup 200 2>/dev/null || true
         ip route flush table 200 2>/dev/null || true
     fi
+    [[ -f $creds_file ]] && rm $creds_file
 }

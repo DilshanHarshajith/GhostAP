@@ -195,6 +195,10 @@ Proxy & Interception:
   --proxy-user <user>        Proxy Username
   --proxy-pass <pass>        Proxy Password
 
+VPN Routing:
+  --vpn <file>               VPN configuration file (.ovpn or .conf)
+  --vpn-creds <user:pass>    VPN credentials (optional, will be prompted if needed)
+
 Global:
   --int, --interactive       Run in Interactive Mode
   --config <file>            Load configuration from file

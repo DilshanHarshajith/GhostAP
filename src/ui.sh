@@ -68,9 +68,9 @@ show_status() {
     echo "DNS Spoofing: ${DEFAULTS[DNS_SPOOFING]}"
     echo "Packet Capture: ${DEFAULTS[PACKET_CAPTURE]}"
     echo "Proxy Enabled: ${DEFAULTS[PROXY_ENABLED]}"
-    if [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]]; then
-        echo "Proxy: ${DEFAULTS[PROXY_TYPE]:-http}://${DEFAULTS[PROXY_HOST]:-127.0.0.1}:${DEFAULTS[PROXY_PORT]} (Mode: ${DEFAULTS[PROXY_MODE]})"
-    fi
+    [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]] && echo "Proxy: ${DEFAULTS[PROXY_TYPE]:-http}://${DEFAULTS[PROXY_HOST]:-127.0.0.1}:${DEFAULTS[PROXY_PORT]} (Mode: ${DEFAULTS[PROXY_MODE]})"
+    echo "VPN Routing Enabled: ${DEFAULTS[VPN_ROUTING]}"
+    [[ ${DEFAULTS[VPN_ROUTING]} == true ]] && echo "VPN Config: ${DEFAULTS[VPN_CONFIG]}":"VPN Interface: ${VPN_INTERFACE}":"VPN Credentials: ${DEFAULTS[VPN_CREDS]}"
     echo "Running PIDs: ${PIDS[*]}"
     echo "Config Dir: ${CONFIG_DIR}"
     echo "Setup Dir: ${SETUP_DIR}"
@@ -82,9 +82,7 @@ show_status() {
     echo
     echo "Access Point is running. Press Ctrl+C to stop."
     echo "Monitor logs: tail -f ${LOG_DIR}/GhostAP.log"
-    if [[ "${DEFAULTS[PACKET_CAPTURE]}" == true ]]; then
-        echo "View captures: ls -la \"${DEFAULTS[CAPTURE_FILE]}\""
-    fi
+    [[ "${DEFAULTS[PACKET_CAPTURE]}" == true ]] && echo "View captures: ls -la \"${DEFAULTS[CAPTURE_FILE]}\""
 }
 
 show_usage() {

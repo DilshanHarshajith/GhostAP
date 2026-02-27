@@ -73,6 +73,7 @@ declare -A DEFAULTS=(
 
     [VPN_ROUTING]=false
     [VPN_CONFIG]=""
+    [VPN_CREDS]=""
 
     [PROXY_ENABLED]=false
     [PROXY_HOST]=""
