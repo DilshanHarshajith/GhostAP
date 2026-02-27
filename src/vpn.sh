@@ -29,7 +29,28 @@ configure_vpn() {
         if [[ "${vpn_config}" == *.ovpn ]]; then
             log "Starting OpenVPN with ${vpn_config}"
             # --route-nopull prevents OpenVPN from hijacking host default route
-            openvpn --config "${vpn_config}" --route-nopull --daemon --writepid "${TMP_DIR}/openvpn.pid"
+            local openvpn_creds
+            local openvpn_cmd=(openvpn --config "$vpn_config" --daemon --writepid "${TMP_DIR}/openvpn.pid" )
+
+            if grep -q "^auth-user-pass" "$vpn_config"; then
+                # Loop until credentials are non-empty AND match user:pass format
+                while [[ -z "$openvpn_creds" || ! "$openvpn_creds" =~ ^[^:]+:[^:]+$ ]]; do
+                    read -r -p "OpenVPN credentials [format: username:password]: " openvpn_creds
+                done
+
+                # Split credentials into user and password
+                vpn_user="${openvpn_creds%%:*}"
+                vpn_pass="${openvpn_creds#*:}"
+
+                # Write a temporary credentials file (openvpn expects user on line 1, pass on line 2)
+                creds_file="${TMP_DIR}/openvpn_creds.txt"
+                printf '%s\n%s\n' "$vpn_user" "$vpn_pass" > "$creds_file"
+                chmod 600 "$creds_file"
+
+                openvpn_cmd+=(--auth-user-pass "$creds_file")
+            fi
+
+            "${openvpn_cmd[@]}"
             
             # Wait for tun adapter to appear
             log "Waiting for OpenVPN interface..."
@@ -63,13 +84,7 @@ configure_vpn() {
             # wg_ap is 5 chars
             VPN_TEMP_CONF="${TMP_DIR}/wg_ap.conf"
             cp "${vpn_config}" "${VPN_TEMP_CONF}"
-            
-            # Append Table = off to prevent WireGuard from changing host default route
-            if ! grep -q -i "Table\s*=\s*off" "${VPN_TEMP_CONF}"; then
-                 # Insert under [Interface]
-                 sed -i '/^\[Interface\]/a Table = off' "${VPN_TEMP_CONF}"
-            fi
-            
+                        
             # wg-quick up takes the filename as interface name
             local wg_iface=$(basename "${VPN_TEMP_CONF}" .conf)
             wg-quick up "${VPN_TEMP_CONF}" || error "Failed to start WireGuard."
@@ -78,20 +93,20 @@ configure_vpn() {
             error "Unsupported VPN config extension. Must be .ovpn or .conf"
         fi
         
-    else
-        # No config provided, let user select from existing VPN interfaces
-        local interfaces
-        mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | egrep "(tun|wg|proton|tap)")
-        if [[ ${#interfaces[@]} -eq 0 ]]; then
-            error "No existing VPN interfaces found and no config provided."
-        fi
-        if [[ "${INTERACTIVE_MODE}" == true ]]; then
-            VPN_INTERFACE=$(select_from_list "Select existing VPN interface for routing:" "${interfaces[@]}")
         else
-            VPN_INTERFACE="${interfaces[0]}"
-            warn "No VPN config provided, auto-selected existing interface: ${VPN_INTERFACE}"
+            # No config provided, let user select from existing VPN interfaces
+            local interfaces
+            mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | egrep "(tun|wg|proton|tap)")
+            if [[ ${#interfaces[@]} -eq 0 ]]; then
+                error "No existing VPN interfaces found and no config provided."
+            fi
+            if [[ "${INTERACTIVE_MODE}" == true ]]; then
+                VPN_INTERFACE=$(select_from_list "Select existing VPN interface for routing:" "${interfaces[@]}")
+            else
+                VPN_INTERFACE="${interfaces[0]}"
+                warn "No VPN config provided, auto-selected existing interface: ${VPN_INTERFACE}"
+            fi
         fi
-    fi
 
     # Check connectivity on VPN interface momentarily
     log "Checking connectivity on ${VPN_INTERFACE}..."

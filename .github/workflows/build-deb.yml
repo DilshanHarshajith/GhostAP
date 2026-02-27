@@ -1,0 +1,265 @@
+name: Build & Release Debian Package
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v1.0.0) — must already exist in the repo"
+        required: true
+        default: "v1.0.0"
+      prerelease:
+        description: "Mark as pre-release?"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build .deb and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Resolve version ───────────────────────────────────────────────────────
+      # On a tag push  → GITHUB_REF = refs/tags/v1.2.3  → strip prefix
+      # On manual run  → use the explicit "tag" input supplied by the user
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+
+          # Guard: must look like a version tag
+          echo "$TAG" | grep -qE '^v?[0-9]' || {
+            echo "::error::ref '${GITHUB_REF}' is not a version tag. Push a tag like v1.0.0 or use Run workflow and supply a tag."
+            exit 1
+          }
+
+          VER="${TAG#v}"                        # strip leading v
+
+          # v1.2.3-2 → PKG=1.2.3 REV=2  |  v1.2.3 → PKG=1.2.3 REV=1
+          echo "$VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' && {
+            PKG="${VER%-*}"; REV="${VER##*-}"
+          } || {
+            PKG="${VER%%[-~]*}"; REV="1"
+          }
+
+          IS_PRE=false
+          echo "$TAG" | grep -qE '(rc|alpha|beta|pre)' && IS_PRE=true
+          [ "${{ github.event.inputs.prerelease }}" = "true" ] && IS_PRE=true
+
+          DEB="ghostap_${PKG}-${REV}_all.deb"
+
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "pkg=$PKG"     >> "$GITHUB_OUTPUT"
+          echo "rev=$REV"     >> "$GITHUB_OUTPUT"
+          echo "is_pre=$IS_PRE" >> "$GITHUB_OUTPUT"
+          echo "deb=$DEB"     >> "$GITHUB_OUTPUT"
+
+          echo "Tag=$TAG  pkg=$PKG  rev=$REV  pre=$IS_PRE  deb=$DEB"
+
+      # ── Install dpkg tooling ─────────────────────────────────────────────────
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends dpkg-dev xz-utils lintian
+
+      # ── Assemble and build the .deb ──────────────────────────────────────────
+      # All files are written with printf so there are no heredoc terminators
+      # sitting at column 0 that would break YAML parsing.
+      - name: Build .deb
+        env:
+          PKG: ${{ steps.ver.outputs.pkg }}
+          REV: ${{ steps.ver.outputs.rev }}
+          DEB: ${{ steps.ver.outputs.deb }}
+        run: |
+          set -euo pipefail
+
+          STAGE="$(mktemp -d)/ghostap"
+          DEB_DIR="$STAGE/DEBIAN"
+          mkdir -p "$DEB_DIR"
+
+          # ── Stage files ──────────────────────────────────────────────────────
+          install -Dm755 GhostAP.sh "$STAGE/usr/share/ghostap/GhostAP.sh"
+          for f in src/*.sh; do
+            install -Dm644 "$f" "$STAGE/usr/share/ghostap/src/$(basename "$f")"
+          done
+          mkdir -p "$STAGE/var/lib/ghostap"
+
+          SIZE_KB=$(du -sk "$STAGE" | cut -f1)
+
+          # ── DEBIAN/control (printf — no heredoc) ─────────────────────────────
+          {
+            printf 'Package: ghostap\n'
+            printf 'Version: %s-%s\n'   "$PKG" "$REV"
+            printf 'Architecture: all\n'
+            printf 'Section: net\n'
+            printf 'Priority: optional\n'
+            printf 'Installed-Size: %s\n' "$SIZE_KB"
+            printf 'Maintainer: DilshanHarshajith <dilshan@example.com>\n'
+            printf 'Depends: bash (>= 4.0), hostapd, dnsmasq, wireless-tools, net-tools, iptables, iproute2\n'
+            printf 'Recommends: wireshark-common, redsocks, mitmproxy\n'
+            printf 'Suggests: tshark, aircrack-ng\n'
+            printf 'Homepage: https://github.com/${{ github.repository }}\n'
+            printf 'Description: Wireless access point creator with advanced features\n'
+            printf ' GhostAP creates wireless APs with internet sharing, packet capture,\n'
+            printf ' DNS spoofing, proxy routing, AP cloning, and monitor mode.\n'
+            printf ' .\n'
+            printf ' Supports mitmproxy, Burp Suite, and redsocks integration.\n'
+            printf ' Provides interactive and CLI modes with config management.\n'
+          } > "$DEB_DIR/control"
+
+          echo "=== control ===" && cat "$DEB_DIR/control" && echo "==="
+
+          # ── DEBIAN/postinst ──────────────────────────────────────────────────
+          {
+            printf '#!/bin/bash\nset -e\n'
+            printf 'case "$1" in\n'
+            printf '  configure|abort-upgrade|abort-remove|abort-deconfigure)\n'
+            printf '    mkdir -p /var/lib/ghostap/{Config,Logs,Output,Temp}\n'
+            printf '    chmod 750 /var/lib/ghostap\n'
+            printf '    printf '"'"'#!/bin/bash\nif [ "$EUID" -ne 0 ]; then exec sudo "$0" "$@"; fi\ncd /var/lib/ghostap\nexec bash /usr/share/ghostap/GhostAP.sh "$@"\n'"'"' > /usr/bin/ghostap\n'
+            printf '    chmod 755 /usr/bin/ghostap\n'
+            printf '    echo "GhostAP installed. Run: sudo ghostap --help"\n'
+            printf '    ;;\n'
+            printf 'esac\nexit 0\n'
+          } > "$DEB_DIR/postinst"
+          chmod 755 "$DEB_DIR/postinst"
+
+          # ── DEBIAN/prerm ─────────────────────────────────────────────────────
+          {
+            printf '#!/bin/bash\nset -e\n'
+            printf 'case "$1" in\n'
+            printf '  remove|upgrade|deconfigure)\n'
+            printf '    pkill -f GhostAP.sh 2>/dev/null || true\n'
+            printf '    iptables -t nat -F  2>/dev/null || true\n'
+            printf '    iptables -F FORWARD 2>/dev/null || true\n'
+            printf '    ;;\n'
+            printf 'esac\nexit 0\n'
+          } > "$DEB_DIR/prerm"
+          chmod 755 "$DEB_DIR/prerm"
+
+          # ── DEBIAN/postrm ────────────────────────────────────────────────────
+          {
+            printf '#!/bin/bash\nset -e\n'
+            printf 'case "$1" in\n'
+            printf '  purge)\n'
+            printf '    rm -f  /usr/bin/ghostap\n'
+            printf '    rm -rf /var/lib/ghostap\n'
+            printf '    ;;\n'
+            printf 'esac\nexit 0\n'
+          } > "$DEB_DIR/postrm"
+          chmod 755 "$DEB_DIR/postrm"
+
+          # ── md5sums ──────────────────────────────────────────────────────────
+          (cd "$STAGE" && find . -type f ! -path './DEBIAN/*' | sort | xargs md5sum | sed 's|^\./||') \
+            > "$DEB_DIR/md5sums"
+
+          # ── Build .deb ───────────────────────────────────────────────────────
+          mkdir -p dist
+          dpkg-deb -Zxz --build "$STAGE" "dist/$DEB"
+          echo "Built: dist/$DEB  ($(du -h dist/$DEB | cut -f1))"
+
+      # ── Verify ───────────────────────────────────────────────────────────────
+      - name: Verify package
+        env:
+          DEB: ${{ steps.ver.outputs.deb }}
+        run: |
+          echo "=== info ===" && dpkg-deb --info "dist/$DEB"
+          echo "=== contents ===" && dpkg-deb --contents "dist/$DEB"
+
+      # ── Lintian ──────────────────────────────────────────────────────────────
+      - name: Lintian
+        env:
+          DEB: ${{ steps.ver.outputs.deb }}
+        run: |
+          lintian \
+            --no-tag-display-limit \
+            --suppress-tags bad-distribution-in-changes-file,no-changelog,changelog-file-missing-in-native-package \
+            "dist/$DEB" \
+          || echo "::warning::Lintian warnings above (non-fatal)"
+
+      # ── Checksum ─────────────────────────────────────────────────────────────
+      - name: Checksum
+        id: sum
+        env:
+          DEB: ${{ steps.ver.outputs.deb }}
+        run: |
+          cd dist
+          sha256sum "$DEB" > "${DEB}.sha256"
+          echo "sha256=$(awk '{print $1}' "${DEB}.sha256")" >> "$GITHUB_OUTPUT"
+          echo "sum_file=${DEB}.sha256"                     >> "$GITHUB_OUTPUT"
+          cat "${DEB}.sha256"
+
+      # ── Release notes ─────────────────────────────────────────────────────────
+      - name: Release notes
+        env:
+          PKG: ${{ steps.ver.outputs.pkg }}
+          DEB: ${{ steps.ver.outputs.deb }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          SHA: ${{ steps.sum.outputs.sha256 }}
+        run: |
+          PREV=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1 || true)
+          if [ -n "$PREV" ]; then
+            LOG=$(git log "${PREV}..HEAD" --pretty=format:"- %s (%h)" --no-merges | head -40)
+            SINCE="Changes since \`${PREV}\`"
+          else
+            LOG=$(git log HEAD --pretty=format:"- %s (%h)" --no-merges | head -40)
+            SINCE="Initial release"
+          fi
+
+          # Write using printf to avoid any quoting/expansion issues
+          {
+            printf '## GhostAP %s\n\n' "$TAG"
+            printf '### What'"'"'s Changed\n%s:\n\n%s\n\n---\n\n' "$SINCE" "$LOG"
+            printf '### Install\n\n```bash\n'
+            printf 'wget https://github.com/${{ github.repository }}/releases/download/%s/%s\n' "$TAG" "$DEB"
+            printf 'wget https://github.com/${{ github.repository }}/releases/download/%s/%s.sha256\n' "$TAG" "$DEB"
+            printf 'sha256sum --check %s.sha256\n' "$DEB"
+            printf 'sudo apt install ./%s\n' "$DEB"
+            printf '```\n\n'
+            printf '### Requirements\n'
+            printf 'Debian/Ubuntu with: `hostapd` `dnsmasq` `wireless-tools` `net-tools` `iptables` `iproute2`\n\n'
+            printf '### SHA256\n```\n%s  %s\n```\n' "$SHA" "$DEB"
+          } > release_notes.md
+
+      # ── GitHub Release ────────────────────────────────────────────────────────
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: "GhostAP ${{ steps.ver.outputs.tag }}"
+          body_path: release_notes.md
+          prerelease: ${{ steps.ver.outputs.is_pre == 'true' }}
+          draft: false
+          fail_on_unmatched_files: true
+          files: |
+            dist/${{ steps.ver.outputs.deb }}
+            dist/${{ steps.sum.outputs.sum_file }}
+
+      # ── Upload artifact ───────────────────────────────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.ver.outputs.deb }}
+          path: dist/${{ steps.ver.outputs.deb }}
+          retention-days: 30
+          if-no-files-found: error

@@ -45,7 +45,7 @@ main() {
     check_dependencies
     
     log "GhostAP starting..."
-    log "PID: $$, User: $(whoami)"
+    log "PID: $$, User: ${SUDO_USER:-$(whoami)}"
     
     if [[ -n "${CONFIG_FILE}" ]]; then
         load_config
@@ -65,7 +65,6 @@ main() {
     configure_internet_sharing
     configure_proxy
     configure_dns_spoof
-    configure_doh_blocking
     configure_packet_capture
 
     save_config

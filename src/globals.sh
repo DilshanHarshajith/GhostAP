@@ -1,14 +1,24 @@
 #!/bin/bash
 
-# Define Project Root
-# SCRIPT_DIR will be the parent directory of this file (src/..) which is the project root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Detect real user home
+if [[ -n "$SUDO_USER" ]]; then
+    # If running under sudo, get the real user's home
+    USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+else
+    USER_HOME="$HOME"
+fi
 
-CONFIG_DIR="${SCRIPT_DIR}/Config"
-SETUP_DIR="${SCRIPT_DIR}/Setups"
-LOG_DIR="${SCRIPT_DIR}/Logs"
-OUT_DIR="${SCRIPT_DIR}/Output"
-TMP_DIR="${SCRIPT_DIR}/Temp"
+# APP_USER_DIR: per-user folder in home (~) for configs, logs, outputs, and temp files
+APP_USER_DIR="${USER_HOME}/GhostAP"
+
+# WORKING_DIR: current working directory
+WORKING_DIR="$(pwd)"
+
+CONFIG_DIR="${APP_USER_DIR}/Config"
+SETUP_DIR="${APP_USER_DIR}/Setups"
+LOG_DIR="${APP_USER_DIR}/Logs"
+OUT_DIR="${WORKING_DIR}"
+TMP_DIR="${APP_USER_DIR}/Temp"
 LOG_FILE="${LOG_DIR}/GhostAP.log"
 
 # Configuration Files
@@ -40,15 +50,11 @@ DIRS=(
 # Initialize directories
 for dir in "${DIRS[@]}"; do
     if [[ ! -d "${dir}" ]]; then
-        mkdir -p "${dir}" || {
-            echo "Failed to create directory: ${dir}" >&2
-            exit 1
-        }
+        mkdir -p "${dir}" || { echo "Failed to create directory: ${dir}" >&2; exit 1; }
     fi
-    chmod -R 755 "${dir}" || {
-        echo "Failed to set permissions for directory: ${dir}" >&2
-        exit 1
-    }
+    [[ -n "$SUDO_USER" ]] && { chown -R "$SUDO_USER:$SUDO_USER" "${dir}" || { echo "Failed to set ownership for directory: ${dir}" >&2; exit 1; } }
+    chmod g+s "${dir}" || { echo "Failed to set sticky bit for directory: ${dir}" >&2; exit 1; }
+    chmod -R 775 "${dir}" || { echo "Failed to set permissions for directory: ${dir}" >&2; exit 1; }
 done
 
 declare -A DEFAULTS=(
