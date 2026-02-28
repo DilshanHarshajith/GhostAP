@@ -80,8 +80,9 @@ start_services() {
         else
             log "Added iptables rule: ${rule}"
             # Store the reverse command (delete) for cleanup
-            APPLIED_RULES+=("${rule/-I/-D}")
-            APPLIED_RULES+=("${rule/-A/-D}")
+            local delete_rule="${rule/ -I / -D }"
+            delete_rule="${delete_rule/ -A / -D }"
+            APPLIED_RULES+=("${delete_rule}")
         fi
     done
 }
