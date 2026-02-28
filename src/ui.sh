@@ -95,6 +95,7 @@ Basic Options:
 Interface Options:
   -i, --interface IFACE        Wireless interface to use
   -si, --source-interface IFACE Source interface for internet sharing
+  -m, --mac MAC                MAC address to use (BSSID)
 
 Network Options:
   -s, --ssid SSID             Network name (SSID)
