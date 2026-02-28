@@ -63,16 +63,20 @@ enable_packet_capture(){
         TSHARK_PID=$!
         
         # Wait a moment and verify tshark is actually running
-        sleep 10
-        if ! kill -0 "${TSHARK_PID}" 2>/dev/null; then
-            warn "tshark process died immediately after starting"
-            warn "Check error log: ${capture_err}"
-            if [[ -f "${capture_err}" ]]; then
-                warn "Last error: $(tail -3 "${capture_err}")"
+        local check=0
+        while [[ ${check} -lt 3 ]]; do
+            sleep 1
+            if ! kill -0 "${TSHARK_PID}" 2>/dev/null; then
+                warn "tshark process died immediately after starting"
+                warn "Check error log: ${capture_err}"
+                if [[ -f "${capture_err}" ]]; then
+                    warn "Last error: $(tail -3 "${capture_err}")"
+                fi
+                TSHARK_PID=""
+                return 1
             fi
-            TSHARK_PID=""
-            return 1
-        fi
+            ((check++))
+        done
         
         # Verify the capture file is being created
         local wait_count=0
