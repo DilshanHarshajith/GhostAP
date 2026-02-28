@@ -53,7 +53,7 @@ get_wifi_ssids() {
   
   while IFS= read -r ssid_line; do
     [[ -n "$ssid_line" ]] && ssids+=("$ssid_line")
-  done < <(sudo iwlist "$interface" scan | grep 'ESSID:' | sed -e 's/.*ESSID:"\(.*\)"/\1/')
+  done < <(iwlist "$interface" scan | grep 'ESSID:' | sed -e 's/.*ESSID:"\(.*\)"/\1/')
 
   printf '%s\n' "${ssids[@]}"
 }
@@ -62,7 +62,7 @@ get_ap_info() {
   local target_ssid="$1"
   local interface="${2:-wlan0}"
 
-  sudo iwlist "$interface" scan | awk -v ssid="$target_ssid" '
+  iwlist "$interface" scan | awk -v ssid="$target_ssid" '
     BEGIN {
       mac = ""; channel = ""; essid = "";
     }

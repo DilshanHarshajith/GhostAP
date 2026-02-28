@@ -123,7 +123,7 @@ configure_dns_spoof() {
     fi
 
     if [[ -n "${ARG[SPOOF_DOMAINS]}" ]]; then
-        IFS='|' read -ra entries <<< "$SPOOF_DOMAINS"
+        IFS='|' read -ra entries <<< "${DEFAULTS[SPOOF_DOMAINS]}"
         for spoof_entry in "${entries[@]}"; do
             # Check if entry has explicit IP (contains =)
             if [[ "${spoof_entry}" == *"="* ]]; then

@@ -73,7 +73,6 @@ start_services() {
     fi
 
     log "Applying iptables rules..."
-    log "Applying iptables rules..."
     for rule in "${IPTABLES_RULES[@]}"; do
         debug "Executing rule: ${rule}"
         if ! eval "${rule}" 2>/dev/null; then
@@ -82,6 +81,7 @@ start_services() {
             log "Added iptables rule: ${rule}"
             # Store the reverse command (delete) for cleanup
             APPLIED_RULES+=("${rule/-I/-D}")
+            APPLIED_RULES+=("${rule/-A/-D}")
         fi
     done
 }
