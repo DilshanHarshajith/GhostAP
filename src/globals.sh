@@ -48,14 +48,16 @@ DIRS=(
 )
 
 # Initialize directories
-for dir in "${DIRS[@]}"; do
-    if [[ ! -d "${dir}" ]]; then
-        mkdir -p "${dir}" || { echo "Failed to create directory: ${dir}" >&2; exit 1; }
-    fi
-    [[ -n "$SUDO_USER" ]] && { chown -R "$SUDO_USER:$SUDO_USER" "${dir}" || { echo "Failed to set ownership for directory: ${dir}" >&2; exit 1; } }
-    chmod g+s "${dir}" || { echo "Failed to set sticky bit for directory: ${dir}" >&2; exit 1; }
-    chmod -R 775 "${dir}" || { echo "Failed to set permissions for directory: ${dir}" >&2; exit 1; }
-done
+if [[ ${EUID} -eq 0 ]]; then
+    for dir in "${DIRS[@]}"; do
+        if [[ ! -d "${dir}" ]]; then
+            mkdir -p "${dir}" || { echo "Failed to create directory: ${dir}" >&2; exit 1; }
+        fi
+        [[ -n "$SUDO_USER" ]] && { chown -R "$SUDO_USER:$SUDO_USER" "${dir}" || { echo "Failed to set ownership for directory: ${dir}" >&2; exit 1; } }
+        chmod g+s "${dir}" || { echo "Failed to set sticky bit for directory: ${dir}" >&2; exit 1; }
+        chmod -R 775 "${dir}" || { echo "Failed to set permissions for directory: ${dir}" >&2; exit 1; }
+    done
+fi
 
 declare -A DEFAULTS=(
     [INTERFACE]=""
@@ -94,7 +96,7 @@ declare -g CONFIG_FILE="${SETUP_DIR}/default.conf"
 declare -g INTERFACE="${DEFAULTS[INTERFACE]}"
 declare -g SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
 declare -g SUBNET_OCT="${DEFAULTS[SUBNET]}"
-declare -g SPOOF_DOMAINS=""
+declare -g SPOOF_DOMAINS="${DEFAULTS[SPOOF_DOMAINS]}"
 
 # Packet Capture Globals
 declare -g CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
