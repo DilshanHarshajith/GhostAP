@@ -24,8 +24,6 @@ debug() {
 cleanup() {
     log "Starting cleanup process..."
     local cleanup_errors=0
-
-    rm -rf "${TMP_DIR}"
     
     for pid in "${PIDS[@]}"; do
         if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
@@ -46,6 +44,7 @@ cleanup() {
 
     sync
     move_capture_file
+    rm -rf "${TMP_DIR}"
 
     if [[ -n "${DEFAULTS[INTERFACE]}" ]]; then
         ip link set "${DEFAULTS[INTERFACE]}" down
