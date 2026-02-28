@@ -59,6 +59,9 @@ configure_proxy() {
     # Configure specific parameters
     if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" || "${proxy_mode}" == "REMOTE_DNAT" ]]; then
         if [[ -z "${ARG[PROXY_HOST]}" ]]; then
+            if [[ "${INTERACTIVE_MODE}" != true ]]; then
+                error "Proxy host required for ${proxy_mode} (use --proxy-host)"
+            fi
             while true; do
                 read -r -p "Proxy/Remote Host IP: " user_input
                 proxy_host="${user_input:-"${DEFAULTS[PROXY_HOST]}"}"
