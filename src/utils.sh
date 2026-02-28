@@ -151,60 +151,6 @@ validate_mac() {
     return 0
 }
 
-
-
-show_usage() {
-    cat << EOF
-Usage: $(basename "$0") [OPTIONS]
-
-Network Configuration:
-  -i, --interface <iface>    Wireless interface to use for AP
-  -s, --ssid <name>          SSID (Network Name)
-  -c, --channel <num>        Channel (1-14)
-  --security <type>          Security type: open, wpa2, wpa3
-  --password <pass>          Password for WPA2/WPA3 (8-63 chars)
-  --subnet <octet>           Subnet octet (default: 10 -> 192.168.10.1)
-  --dns <ip>                 Custom DNS server (default: 8.8.8.8)
-  --internet                 Enable Internet Sharing (NAT)
-  -si, --source-interface    Source interface for Internet (e.g., eth0)
-  -m, --mac <mac>            Custom MAC address for AP (BSSID)
-
-
-Features:
-  --capture                  Enable Packet Capture (tshark)
-  --spoof [domain]           Enable DNS Spoofing (optional: specify domain)
-  --spoof-target <ip>        Default IP for spoofed domains (default: AP IP)
-  --block-doh                Block DNS-over-HTTPS to enforce DNS spoofing
-  --clone [ssid]             Clone an existing network (optional: specify SSID)
-
-Proxy & Interception:
-  --proxy-mode <mode>        Proxy Mode: TRANSPARENT_LOCAL, TRANSPARENT_UPSTREAM, REMOTE_DNAT
-  
-  Shortcut Proxy Flags:
-  --local-proxy              Shortcut for --proxy-mode TRANSPARENT_LOCAL
-  --remote-proxy             Shortcut for --proxy-mode REMOTE_DNAT
-  --proxy                    Shortcut for --proxy-mode TRANSPARENT_UPSTREAM
-
-  Proxy Options:
-  --proxy-host <ip>          Upstream Proxy IP or Remote Host IP
-  --proxy-port <port>        Proxy Port (default: 8080)
-  --proxy-type <type>        Proxy Type: http, socks4, socks5
-  --proxy-user <user>        Proxy Username
-  --proxy-pass <pass>        Proxy Password
-
-Global:
-  --int, --interactive       Run in Interactive Mode
-  --config <file>            Load configuration from file
-  --save <name>              Save current configuration
-  -h, --help                 Show this help message
-
-Examples:
-  $(basename "$0") -i wlan0 -s MyAP --internet
-  $(basename "$0") --int
-  $(basename "$0") -i wlan0 --local-proxy --spoof google.com
-EOF
-}
-
 handle_signal() {
     local signal="$1"
     log "Received signal: ${signal}"
