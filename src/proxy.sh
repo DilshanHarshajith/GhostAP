@@ -1,3 +1,4 @@
+#!/bin/bash
 # Proxy Modes:
 # 1. TRANSPARENT_LOCAL: Intercepts traffic locally on AP. Clients -> AP (8080) -> Internet
 # 2. TRANSPARENT_UPSTREAM (redsocks): Intercepts traffic and forwards to an external proxy. Clients -> AP -> Redsocks -> External Proxy -> Internet
@@ -97,24 +98,23 @@ configure_proxy() {
          fi
     fi
 
-    if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" ]]; then
+    if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" && ${INTERACTIVE_MODE} == true ]]; then
          if [[ -z "${ARG[PROXY_TYPE]}" ]]; then
              local type_choice
              type_choice=$(select_from_list "Upstream Proxy Type:" "HTTP" "SOCKS4" "SOCKS5")
              DEFAULTS[PROXY_TYPE]="${type_choice,,}"
          fi
-    else
-        # Non-Interactive Mode Validation
-        if [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]]; then
-            if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" || "${proxy_mode}" == "REMOTE_DNAT" ]]; then
-                 [[ -n "${DEFAULTS[PROXY_HOST]}" ]] || error "Proxy host is required for ${proxy_mode} (use --proxy-host)"
-            fi
-            
-            [[ -n "${DEFAULTS[PROXY_PORT]}" ]] || error "Proxy port is required (use --proxy-port)"
+    fi
 
-            if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" ]]; then
-                [[ -n "${DEFAULTS[PROXY_TYPE]}" ]] || error "Proxy type is required for Upstream Proxy (use --proxy-type)"
-            fi
+    if [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]]; then
+        if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" || "${proxy_mode}" == "REMOTE_DNAT" ]]; then
+                [[ -n "${DEFAULTS[PROXY_HOST]}" ]] || error "Proxy host is required for ${proxy_mode} (use --proxy-host)"
+        fi
+        
+        [[ -n "${DEFAULTS[PROXY_PORT]}" ]] || error "Proxy port is required (use --proxy-port)"
+
+        if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" ]]; then
+            [[ -n "${DEFAULTS[PROXY_TYPE]}" ]] || error "Proxy type is required for Upstream Proxy (use --proxy-type)"
         fi
     fi
 
@@ -194,13 +194,15 @@ setup_redsocks_upstream() {
 
     log "Setting up Upstream Proxy via redsocks (${proxy_type}://${proxy_host}:${proxy_port})..."
     local redsocks_conf="${REDSOCKS_CONF}"
+    local redsocks_pid_file="${TMP_DIR}/redsocks.pid"
 
-     cat > "${redsocks_conf}" << EOF
+    cat > "${redsocks_conf}" << EOF
 base {
     log_debug = off;
     log_info = on;
     log = "file:${REDSOCKS_LOG}";
     daemon = on;
+    pidfile = "${redsocks_pid_file}";
     redirector = iptables;
 }
 
@@ -221,17 +223,22 @@ EOF
         warn "Failed to start redsocks"
         return 1
     fi
-    
+
     sleep 1
-    local redsocks_pid
-    redsocks_pid=$(pgrep redsocks | head -1)
-    if [[ -n "${redsocks_pid}" ]]; then
+    if [[ -f "${redsocks_pid_file}" ]]; then
+        local redsocks_pid
+        redsocks_pid=$(< "${redsocks_pid_file}")
         PIDS+=("${redsocks_pid}")
-        log "Redsocks started with PID: ${redsocks_pid}"
-    
+    else
+        warn "redsocks PID file not found; process tracking may be inaccurate"
+        # Fallback to pgrep only if pidfile absent
+        redsocks_pid=$(pgrep -n redsocks)
+        [[ -n "${redsocks_pid}" ]] && PIDS+=("${redsocks_pid}")
+    fi
+
+    if [[ -n "${redsocks_pid}" ]]; then
+        log "Redsocks started with PID: ${redsocks_pid}"    
         IPTABLES_RULES+=(
-            "iptables -t nat -I OUTPUT -p tcp --dport 80 -j REDIRECT --to-port 12345"
-            "iptables -t nat -I OUTPUT -p tcp --dport 443 -j REDIRECT --to-port 12345"
             "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 80 -j REDIRECT --to-port 12345"
             "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 443 -j REDIRECT --to-port 12345"
         )
