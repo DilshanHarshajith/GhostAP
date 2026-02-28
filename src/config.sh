@@ -50,7 +50,7 @@ save_config() {
 cat > "${config_file}" << EOF
 # GhostAP Configuration File
 
-INTERFACE="${INTERFACE}"
+INTERFACE="${DEFAULTS[INTERFACE]}"
 SSID="${DEFAULTS[SSID]}"
 CHANNEL="${DEFAULTS[CHANNEL]}"
 SUBNET="${DEFAULTS[SUBNET]}"

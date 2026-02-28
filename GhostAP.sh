@@ -47,14 +47,8 @@ main() {
     log "GhostAP starting..."
     log "PID: $$, User: ${SUDO_USER:-$(whoami)}"
     
-    if [[ -n "${CONFIG_FILE}" ]]; then
-        load_config
-        # Sync globals that are commonly used outside the DEFAULTS array
-        INTERFACE="${DEFAULTS[INTERFACE]}"
-        SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
-        SPOOF_DOMAINS="${DEFAULTS[SPOOF_DOMAINS]}"
-    fi
-
+    [[ -n "${CONFIG_FILE}" ]] && load_config
+    
     configure_interface
     configure_clone
     configure_hostapd

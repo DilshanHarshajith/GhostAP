@@ -150,8 +150,8 @@ setup_local_transparent_proxy() {
     
     # Redirect HTTP/HTTPS to local proxy port
     IPTABLES_RULES+=(
-        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 80 -j REDIRECT --to-port ${port}"
-        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 443 -j REDIRECT --to-port ${port}"
+        "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 80 -j REDIRECT --to-port ${port}"
+        "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 443 -j REDIRECT --to-port ${port}"
     )
 
     log "Transparent proxy redirection applied. Please ensure your proxy tool is listening on port ${port}."
@@ -168,8 +168,8 @@ setup_remote_dnat() {
     
     log "Setting up Remote Forwarding (DNAT) to ${proxy_ip}:${proxy_port}..."
     IPTABLES_RULES+=(
-        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 80  -j DNAT --to-destination ${proxy_ip}:${proxy_port}"
-        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 443 -j DNAT --to-destination ${proxy_ip}:${proxy_port}"
+        "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 80  -j DNAT --to-destination ${proxy_ip}:${proxy_port}"
+        "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 443 -j DNAT --to-destination ${proxy_ip}:${proxy_port}"
     )
 }
 
@@ -239,8 +239,8 @@ EOF
     if [[ -n "${redsocks_pid}" ]]; then
         log "Redsocks started with PID: ${redsocks_pid}"    
         IPTABLES_RULES+=(
-            "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 80 -j REDIRECT --to-port 12345"
-            "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 443 -j REDIRECT --to-port 12345"
+            "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 80 -j REDIRECT --to-port 12345"
+            "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 443 -j REDIRECT --to-port 12345"
         )
     fi
 }

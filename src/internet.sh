@@ -20,25 +20,24 @@ configure_internet_sharing() {
 
     if [[ "${INTERACTIVE_MODE}" == true ]]; then
         if [[ -n "${ARG[SOURCE_INTERFACE]}" ]]; then
-            SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
+            log "Using specified source interface: ${DEFAULTS[SOURCE_INTERFACE]}"
         else
-            mapfile -t interfaces < <(get_internet_interfaces | grep -v "^${INTERFACE}$")
+            mapfile -t interfaces < <(get_internet_interfaces | grep -v "^${DEFAULTS[INTERFACE]}$")
             if [[ ${#interfaces[@]} -eq 0 ]]; then
                 DEFAULTS[INTERNET_SHARING]=false
                 return
             fi
-            SOURCE_INTERFACE=$(select_from_list "Source interface for internet:" "${interfaces[@]}")            
+            DEFAULTS[SOURCE_INTERFACE]=$(select_from_list "Source interface for internet:" "${interfaces[@]}")            
         fi
     elif [[ -n "${ARG[SOURCE_INTERFACE]}" ]]; then
-        SOURCE_INTERFACE="${DEFAULTS[SOURCE_INTERFACE]}"
+        log "Using specified source interface: ${DEFAULTS[SOURCE_INTERFACE]}"
     else
         # Auto-select best interface
         local best_iface
         best_iface=$(find_best_upstream_interface)
         if [[ -n "${best_iface}" ]]; then
-            SOURCE_INTERFACE="${best_iface}"
             DEFAULTS[SOURCE_INTERFACE]="${best_iface}"
-            warn "No source interface specified. Automatically selected: ${SOURCE_INTERFACE}"
+            warn "No source interface specified. Automatically selected: ${DEFAULTS[SOURCE_INTERFACE]}"
         else
              warn "No internet-connected interface found. Internet sharing will be disabled."
              DEFAULTS[INTERNET_SHARING]=false
@@ -46,10 +45,9 @@ configure_internet_sharing() {
         fi
     fi
 
-    DEFAULTS[SOURCE_INTERFACE]="${SOURCE_INTERFACE}"
 
-    if ! ping -I "${SOURCE_INTERFACE}" -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-        warn "No internet connectivity detected on source interface ${SOURCE_INTERFACE}"
+    if ! ping -I "${DEFAULTS[SOURCE_INTERFACE]}" -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+        warn "No internet connectivity detected on source interface ${DEFAULTS[SOURCE_INTERFACE]}"
     fi
 
     if [[ "${DEFAULTS[INTERNET_SHARING]}" == true ]]; then
@@ -62,7 +60,7 @@ configure_internet_sharing() {
 
 enable_internet_sharing() {
     if [[ "${DEFAULTS[INTERNET_SHARING]}" == true ]]; then
-        if [[ -n "${SOURCE_INTERFACE}" ]]; then
+        if [[ -n "${DEFAULTS[SOURCE_INTERFACE]}" ]]; then
             log "Enabling internet sharing..."
             
             if ! sysctl -w net.ipv4.ip_forward=1 >/dev/null; then
@@ -70,17 +68,17 @@ enable_internet_sharing() {
             fi
             
             IPTABLES_RULES+=(
-                "iptables -t nat -I POSTROUTING -o ${SOURCE_INTERFACE} -j MASQUERADE"
-                "iptables -I FORWARD -i ${SOURCE_INTERFACE} -o ${INTERFACE} -m state --state RELATED,ESTABLISHED -j ACCEPT"
-                "iptables -I FORWARD -i ${INTERFACE} -o ${SOURCE_INTERFACE} -j ACCEPT"
+                "iptables -t nat -I POSTROUTING -o ${DEFAULTS[SOURCE_INTERFACE]} -j MASQUERADE"
+                "iptables -I FORWARD -i ${DEFAULTS[SOURCE_INTERFACE]} -o ${DEFAULTS[INTERFACE]} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+                "iptables -I FORWARD -i ${DEFAULTS[INTERFACE]} -o ${DEFAULTS[SOURCE_INTERFACE]} -j ACCEPT"
             )
             
             if command -v tc >/dev/null; then
-                tc qdisc add dev "${INTERFACE}" root handle 1: htb default 30 2>/dev/null || true
-                tc class add dev "${INTERFACE}" parent 1: classid 1:1 htb rate 100mbit 2>/dev/null || true
-                tc class add dev "${INTERFACE}" parent 1:1 classid 1:10 htb rate 50mbit ceil 100mbit 2>/dev/null || true
-                tc class add dev "${INTERFACE}" parent 1:1 classid 1:20 htb rate 30mbit ceil 80mbit 2>/dev/null || true
-                tc class add dev "${INTERFACE}" parent 1:1 classid 1:30 htb rate 20mbit ceil 50mbit 2>/dev/null || true
+                tc qdisc add dev "${DEFAULTS[INTERFACE]}" root handle 1: htb default 30 2>/dev/null || true
+                tc class add dev "${DEFAULTS[INTERFACE]}" parent 1: classid 1:1 htb rate 100mbit 2>/dev/null || true
+                tc class add dev "${DEFAULTS[INTERFACE]}" parent 1:1 classid 1:10 htb rate 50mbit ceil 100mbit 2>/dev/null || true
+                tc class add dev "${DEFAULTS[INTERFACE]}" parent 1:1 classid 1:20 htb rate 30mbit ceil 80mbit 2>/dev/null || true
+                tc class add dev "${DEFAULTS[INTERFACE]}" parent 1:1 classid 1:30 htb rate 20mbit ceil 50mbit 2>/dev/null || true
             fi
         fi
     fi
@@ -88,7 +86,7 @@ enable_internet_sharing() {
 
 find_best_upstream_interface() {
     local interfaces
-    mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | grep -v "^${INTERFACE}$")
+    mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | grep -v "lo" | grep -v "^${DEFAULTS[INTERFACE]}$")
     
     local best_iface=""
     local best_ping=9999
