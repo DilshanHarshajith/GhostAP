@@ -64,6 +64,7 @@ PACKET_CAPTURE="${DEFAULTS[PACKET_CAPTURE]}"
 CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 MAC="${DEFAULTS[MAC]}"
 VPN_ROUTING="${DEFAULTS[VPN_ROUTING]}"
+VPN_INTERFACE="${DEFAULTS[VPN_INTERFACE]}"
 VPN_CONFIG="${DEFAULTS[VPN_CONFIG]}"
 VPN_CREDS="${DEFAULTS[VPN_CREDS]}"
 
@@ -197,6 +198,12 @@ parse_arguments() {
                 else
                     shift
                 fi
+                ;;
+            --vpn-interface)
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                DEFAULTS[VPN_INTERFACE]="${2}"
+                ARG[VPN_INTERFACE]=1
+                shift 2
                 ;;
             --vpn-creds)
                 [[ -z "${2:-}" ]] && error "Missing argument for $1"
