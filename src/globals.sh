@@ -74,6 +74,7 @@ declare -A DEFAULTS=(
     [CAPTURE_FILE]="${OUT_DIR}/capture-$(date +%Y%m%d-%H%M%S).pcap"
 
     [VPN_ROUTING]=false
+    [VPN_INTERFACE]=""
     [VPN_CONFIG]=""
     [VPN_CREDS]=""
 
