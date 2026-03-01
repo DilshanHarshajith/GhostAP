@@ -107,6 +107,7 @@ declare -g TSHARK_PID=""
 declare -g -a PIDS=()
 declare -g -a IPTABLES_RULES=()
 declare -g -a APPLIED_RULES=()
+declare -g ORIGINAL_IP_FORWARD=""
 
 # Known DNS-over-HTTPS (DoH) provider IPs
 declare -g -a DOH_PROVIDERS=(
