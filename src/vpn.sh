@@ -40,7 +40,7 @@ configure_vpn() {
 
     [[ "${DEFAULTS[VPN_ROUTING]}" == true ]] || return 0
 
-    # FIX #6: Warn early if VPN routing and internet sharing are both active,
+    # Warn early if VPN routing and internet sharing are both active,
     # since the kill switch DROP rule appended here could conflict with FORWARD
     # ACCEPT rules added later by configure_internet_sharing.
     if [[ "${DEFAULTS[INTERNET_SHARING]}" == true ]]; then
@@ -51,8 +51,9 @@ configure_vpn() {
 
     log "Configuring VPN routing for AP..."
 
-    # 1. Start VPN if config is provided and no interface is pre-selected
-    if [[ -z "${vpn_interface}" && -n "${vpn_config}" ]]; then
+    # If a config file was supplied, always start the VPN from it.
+    # Skip interface detection entirely.
+    if [[ -n "${vpn_config}" ]]; then
         if [[ ! -f "${vpn_config}" ]]; then
             error "VPN config file not found: ${vpn_config}"
         fi
@@ -144,16 +145,19 @@ configure_vpn() {
         else
             error "Unsupported VPN config extension. Must be .ovpn or .conf"
         fi
-    fi
 
-    # 2. Use existing interface or auto-detect if still empty
-    if [[ -z "${vpn_interface}" ]]; then
+    # If an interface was directly specified (--vpn-interface), use it as-is.
+    elif [[ -n "${vpn_interface}" ]]; then
+        log "Using pre-specified VPN interface: ${vpn_interface}"
+
+    else
+        # No interface pre-specified and no config provided — auto-detect from running VPN interfaces
         local interfaces
         mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | grep -E "(tun|wg|proton|tap)")
         if [[ ${#interfaces[@]} -eq 0 ]]; then
             error "No VPN interface detected and no config provided."
         fi
-        # FIX #9: In interactive mode, let the user pick when multiple exist.
+        # In interactive mode, let the user pick when multiple exist.
         # In non-interactive mode with multiple interfaces, abort to avoid silent misrouting.
         if [[ ${#interfaces[@]} -gt 1 ]]; then
             if [[ "${INTERACTIVE_MODE}" == true ]]; then

@@ -209,6 +209,8 @@ parse_arguments() {
                 ;;
             --vpn-interface)
                 [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                DEFAULTS[VPN_ROUTING]=true
+                ARG[VPN_ROUTING]=1
                 DEFAULTS[VPN_INTERFACE]="${2}"
                 ARG[VPN_INTERFACE]=1
                 shift 2
