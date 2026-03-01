@@ -152,7 +152,7 @@ setup_local_transparent_proxy() {
     if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
         error "TRANSPARENT_LOCAL proxy is incompatible with VPN routing: the proxy tool's" \
               "re-originated traffic cannot be marked and will leak outside the VPN." \
-              "Use --proxy-mode TRANSPARENT_UPSTREAM (redsocks) with --vpn instead."
+              "Use --proxy (redsocks) with --vpn instead."
     fi
 
     log "Setting up Local Transparent Proxy on port ${port}..."
@@ -180,7 +180,7 @@ setup_remote_dnat() {
         error "REMOTE_DNAT proxy is incompatible with the VPN kill switch: DNAT'd" \
               "traffic is forwarded toward the external DNAT host via the normal" \
               "interface, not vpn_interface, and is dropped by the kill switch." \
-              "Either disable VPN routing or use TRANSPARENT_UPSTREAM (redsocks)" \
+              "Either disable VPN routing or use --proxy (redsocks)" \
               "so traffic is properly marked and tunnelled through the VPN."
     fi
 
