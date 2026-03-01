@@ -55,7 +55,9 @@ configure_vpn() {
     # Skip interface detection entirely.
     if [[ -n "${vpn_config}" ]]; then
         if [[ ! -f "${vpn_config}" ]]; then
-            error "VPN config file not found: ${vpn_config}"
+            warn "VPN config file not found: ${vpn_config}. Skipping VPN feature."
+            DEFAULTS[VPN_ROUTING]=false
+            return 1
         fi
 
         # Save current tun interfaces to detect the new one
@@ -71,7 +73,9 @@ configure_vpn() {
                 # In non-interactive mode require credentials to be passed via --vpn-creds.
                 if [[ -z "${vpn_creds}" ]]; then
                     if [[ "${INTERACTIVE_MODE}" != true ]]; then
-                        error "OpenVPN config requires credentials. Pass them with --vpn-creds user:pass in non-interactive mode."
+                        warn "OpenVPN config requires credentials. Pass them with --vpn-creds user:pass. Skipping VPN feature."
+                        DEFAULTS[VPN_ROUTING]=false
+                        return 1
                     fi
                     while [[ -z "$vpn_creds" || ! "$vpn_creds" =~ ^[^:]+:[^:]+$ ]]; do
                         read -r -p "OpenVPN credentials [format: username:password]: " vpn_creds
@@ -95,10 +99,14 @@ configure_vpn() {
                 # FIX #1: Register PID exactly once, outside the detection loop.
                 PIDS+=("${VPN_PID}")
                 if ! kill -0 "${VPN_PID}" 2>/dev/null; then
-                    error "OpenVPN process (PID ${VPN_PID}) died immediately. Check your config and credentials."
+                    warn "OpenVPN process (PID ${VPN_PID}) died immediately. Check your config and credentials. Skipping VPN feature."
+                    DEFAULTS[VPN_ROUTING]=false
+                    return 1
                 fi
             else
-                error "OpenVPN did not write a PID file. It may have failed to start."
+                warn "OpenVPN did not write a PID file. It may have failed to start. Skipping VPN feature."
+                DEFAULTS[VPN_ROUTING]=false
+                return 1
             fi
 
             log "Waiting for OpenVPN interface..."
@@ -117,7 +125,9 @@ configure_vpn() {
 
                 # FIX #5 (cont): Also abort early if OpenVPN died during the wait.
                 if ! kill -0 "${VPN_PID}" 2>/dev/null; then
-                    error "OpenVPN process died while waiting for tun interface."
+                    warn "OpenVPN process died while waiting for tun interface. Skipping VPN feature."
+                    DEFAULTS[VPN_ROUTING]=false
+                    return 1
                 fi
 
                 sleep 1
@@ -125,7 +135,9 @@ configure_vpn() {
             done
 
             if [[ -z "${vpn_interface}" ]]; then
-                error "OpenVPN failed to create a tun interface in time."
+                warn "OpenVPN failed to create a tun interface in time. Skipping VPN feature."
+                DEFAULTS[VPN_ROUTING]=false
+                return 1
             fi
 
         elif [[ "${vpn_config}" == *.conf ]]; then
@@ -136,14 +148,20 @@ configure_vpn() {
             # copying — it contains a private key and must not be world-readable.
             chmod 600 "${VPN_TEMP_CONF}"
 
-            wg-quick up "${VPN_TEMP_CONF}" || error "Failed to start WireGuard."
+            wg-quick up "${VPN_TEMP_CONF}" || {
+                warn "Failed to start WireGuard. Skipping VPN feature."
+                DEFAULTS[VPN_ROUTING]=false
+                return 1
+            }
 
             # FIX #7: Derive the interface name from the config filename rather than
             # hardcoding it, so refactors to TMP_DIR or filename stay consistent.
             vpn_interface="$(basename "${VPN_TEMP_CONF}" .conf)"
             DEFAULTS[VPN_INTERFACE]="${vpn_interface}"
         else
-            error "Unsupported VPN config extension. Must be .ovpn or .conf"
+            warn "Unsupported VPN config extension. Must be .ovpn or .conf. Skipping VPN feature."
+            DEFAULTS[VPN_ROUTING]=false
+            return 1
         fi
 
     # If an interface was directly specified (--vpn-interface), use it as-is.
@@ -155,7 +173,9 @@ configure_vpn() {
         local interfaces
         mapfile -t interfaces < <(ip -o link show | awk -F': ' '{print $2}' | grep -E "(tun|wg|proton|tap)")
         if [[ ${#interfaces[@]} -eq 0 ]]; then
-            error "No VPN interface detected and no config provided."
+            warn "No VPN interface detected and no config provided. Skipping VPN feature."
+            DEFAULTS[VPN_ROUTING]=false
+            return 1
         fi
         # In interactive mode, let the user pick when multiple exist.
         # In non-interactive mode with multiple interfaces, abort to avoid silent misrouting.
@@ -163,7 +183,9 @@ configure_vpn() {
             if [[ "${INTERACTIVE_MODE}" == true ]]; then
                 vpn_interface=$(select_from_list "Multiple VPN interfaces found. Select one:" "${interfaces[@]}")
             else
-                error "Multiple VPN interfaces found (${interfaces[*]}). Specify one with --vpn-interface."
+                warn "Multiple VPN interfaces found (${interfaces[*]}). Specify one with --vpn-interface. Skipping VPN feature."
+                DEFAULTS[VPN_ROUTING]=false
+                return 1
             fi
         else
             vpn_interface="${interfaces[0]}"

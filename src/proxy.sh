@@ -111,13 +111,23 @@ configure_proxy() {
 
     if [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]]; then
         if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" || "${proxy_mode}" == "REMOTE_DNAT" ]]; then
-                [[ -n "${DEFAULTS[PROXY_HOST]}" ]] || error "Proxy host is required for ${proxy_mode} (use --proxy-host)"
+            if [[ -z "${DEFAULTS[PROXY_HOST]}" ]]; then
+                warn "Proxy host is required for ${proxy_mode} (use --proxy-host). Skipping proxy feature."
+                DEFAULTS[PROXY_ENABLED]=false
+                return 1
+            fi
         fi
         
-        [[ -n "${DEFAULTS[PROXY_PORT]}" ]] || error "Proxy port is required (use --proxy-port)"
+        if [[ -z "${DEFAULTS[PROXY_PORT]}" ]]; then
+            warn "Proxy port is required (use --proxy-port). Skipping proxy feature."
+            DEFAULTS[PROXY_ENABLED]=false
+            return 1
+        fi
 
-        if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" ]]; then
-            [[ -n "${DEFAULTS[PROXY_TYPE]}" ]] || error "Proxy type is required for Upstream Proxy (use --proxy-type)"
+        if [[ "${proxy_mode}" == "TRANSPARENT_UPSTREAM" && -z "${DEFAULTS[PROXY_TYPE]}" ]]; then
+            warn "Proxy type is required for Upstream Proxy (use --proxy-type). Skipping proxy feature."
+            DEFAULTS[PROXY_ENABLED]=false
+            return 1
         fi
     fi
 
@@ -150,9 +160,11 @@ setup_local_transparent_proxy() {
     local port="${DEFAULTS[PROXY_PORT]:-8080}"
 
     if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
-        error "TRANSPARENT_LOCAL proxy is incompatible with VPN routing: the proxy tool's" \
+        warn "TRANSPARENT_LOCAL proxy is incompatible with VPN routing: the proxy tool's" \
               "re-originated traffic cannot be marked and will leak outside the VPN." \
-              "Use --proxy (redsocks) with --vpn instead."
+              "Use --proxy (redsocks) with --vpn instead. Skipping proxy feature."
+        DEFAULTS[PROXY_ENABLED]=false
+        return 1
     fi
 
     log "Setting up Local Transparent Proxy on port ${port}..."
@@ -173,15 +185,19 @@ setup_remote_dnat() {
     local proxy_port="${DEFAULTS[PROXY_PORT]}"
     
     if [[ -z "${proxy_ip}" || -z "${proxy_port}" ]]; then
-        error "Remote Host/Port required for Remote DNAT"
+        warn "Remote Host/Port required for Remote DNAT. Skipping proxy feature."
+        DEFAULTS[PROXY_ENABLED]=false
+        return 1
     fi
 
     if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
-        error "REMOTE_DNAT proxy is incompatible with the VPN kill switch: DNAT'd" \
+        warn "REMOTE_DNAT proxy is incompatible with the VPN kill switch: DNAT'd" \
               "traffic is forwarded toward the external DNAT host via the normal" \
               "interface, not vpn_interface, and is dropped by the kill switch." \
-              "Either disable VPN routing or use --proxy (redsocks)" \
-              "so traffic is properly marked and tunnelled through the VPN."
+              "Either disable VPN routing or use --proxy (redsocks)." \
+              "Skipping proxy feature."
+        DEFAULTS[PROXY_ENABLED]=false
+        return 1
     fi
 
     log "Setting up Remote Forwarding (DNAT) to ${proxy_ip}:${proxy_port}..."

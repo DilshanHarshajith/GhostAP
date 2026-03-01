@@ -59,11 +59,13 @@ configure_dhcp() {
     fi
     
     if { ! [[ "${subnet_oct}" =~ ^[0-9]+$ ]] || ! ((subnet_oct >= 0 && subnet_oct <= 255)); }; then
-        error "Invalid subnet octet: ${subnet_oct} (must be 0-255)"
+        warn "Invalid subnet octet: ${subnet_oct} (must be 0-255). Skipping DHCP configuration."
+        return 1
     fi
     
     if ! validate_ip "${dns}"; then
-        error "Invalid DNS IP address: ${dns}"
+        warn "Invalid DNS IP address: ${dns}. Skipping DHCP configuration."
+        return 1
     fi
     
     DEFAULTS[SUBNET]="${subnet_oct}"
@@ -199,4 +201,3 @@ configure_doh_blocking() {
 
     log "DoH blocking enabled. All DNS traffic will be redirected to local DNS server."
 }
-

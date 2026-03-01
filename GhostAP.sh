@@ -53,13 +53,13 @@ main() {
     configure_clone
     configure_hostapd
     configure_mac_in_interactive
-    configure_dhcp
+    configure_dhcp || warn "DHCP configuration failed — AP may not assign addresses"
 
-    configure_vpn
-    configure_internet_sharing
-    configure_proxy
-    configure_dns_spoof
-    configure_packet_capture
+    configure_vpn            || warn "VPN feature skipped"
+    configure_internet_sharing || warn "Internet sharing feature skipped"
+    configure_proxy          || warn "Proxy feature skipped"
+    configure_dns_spoof      || warn "DNS spoofing feature skipped"
+    configure_packet_capture || warn "Packet capture feature skipped"
 
     save_config
     
