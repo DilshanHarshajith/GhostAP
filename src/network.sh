@@ -92,7 +92,13 @@ get_ap_info() {
 }
 
 enable_forwarding() {
-    if [[ "$(sysctl -n net.ipv4.ip_forward)" != "1" ]]; then
+    local current
+    current=$(sysctl -n net.ipv4.ip_forward)
+    # Save the original value once so cleanup can restore it exactly
+    if [[ -z "${ORIGINAL_IP_FORWARD}" ]]; then
+        ORIGINAL_IP_FORWARD="${current}"
+    fi
+    if [[ "${current}" != "1" ]]; then
         log "Enabling IP forwarding..."
         sysctl -w net.ipv4.ip_forward=1 >/dev/null || warn "Failed to enable IP forwarding"
     fi
