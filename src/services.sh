@@ -4,17 +4,17 @@ start_services() {
     log "Starting services..."
     
     if command -v nmcli >/dev/null; then
-        nmcli device set "${INTERFACE}" managed no 2>/dev/null || warn "Failed to disable NetworkManager for ${INTERFACE}"
+        nmcli device set "${DEFAULTS[INTERFACE]}" managed no 2>/dev/null || warn "Failed to disable NetworkManager for ${DEFAULTS[INTERFACE]}"
     fi
     
     local retry_count=0
     while [[ ${retry_count} -lt 3 ]]; do
-        ip link set "${INTERFACE}" down 2>/dev/null || true
+        ip link set "${DEFAULTS[INTERFACE]}" down 2>/dev/null || true
         sleep 1
         
-        if ip addr flush dev "${INTERFACE}" && ip addr add "192.168.${SUBNET_OCT}.1/24" dev "${INTERFACE}" && ip link set "${INTERFACE}" up; then
+        if ip addr flush dev "${DEFAULTS[INTERFACE]}" && ip addr add "192.168.${DEFAULTS[SUBNET]}.1/24" dev "${DEFAULTS[INTERFACE]}" && ip link set "${DEFAULTS[INTERFACE]}" up; then
             sleep 2
-            if ip addr show "${INTERFACE}" | grep -q "192.168.${SUBNET_OCT}.1"; then
+            if ip addr show "${DEFAULTS[INTERFACE]}" | grep -q "192.168.${DEFAULTS[SUBNET]}.1"; then
                 break
             fi
         fi
@@ -25,10 +25,10 @@ start_services() {
     done
     
     if [[ ${retry_count} -eq 3 ]]; then
-        error "Failed to configure interface ${INTERFACE} after 3 attempts"
+        error "Failed to configure interface ${DEFAULTS[INTERFACE]} after 3 attempts"
     fi
     
-    log "Interface ${INTERFACE} configured with IP 192.168.${SUBNET_OCT}.1"
+    log "Interface ${DEFAULTS[INTERFACE]} configured with IP 192.168.${DEFAULTS[SUBNET]}.1"
     pkill -f "hostapd.*${HOSTAPD_CONF}" 2>/dev/null || true
     sleep 1
     for i in {1..5}; do
@@ -80,8 +80,9 @@ start_services() {
         else
             log "Added iptables rule: ${rule}"
             # Store the reverse command (delete) for cleanup
-            APPLIED_RULES+=("${rule/-I/-D}")
-            APPLIED_RULES+=("${rule/-A/-D}")
+            local delete_rule="${rule/ -I / -D }"
+            delete_rule="${delete_rule/ -A / -D }"
+            APPLIED_RULES+=("${delete_rule}")
         fi
     done
 }

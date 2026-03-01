@@ -66,14 +66,14 @@ configure_dhcp() {
         error "Invalid DNS IP address: ${dns}"
     fi
     
-    SUBNET_OCT="${subnet_oct}"
+    DEFAULTS[SUBNET]="${subnet_oct}"
     
     cat > "${config_file}" << EOF
-interface=${INTERFACE}
+interface=${DEFAULTS[INTERFACE]}
 bind-interfaces
-dhcp-range=192.168.${SUBNET_OCT}.10,192.168.${SUBNET_OCT}.250,255.255.255.0,12h
-dhcp-option=6,192.168.${SUBNET_OCT}.1
-dhcp-option=3,192.168.${SUBNET_OCT}.1
+dhcp-range=192.168.${DEFAULTS[SUBNET]}.10,192.168.${DEFAULTS[SUBNET]}.250,255.255.255.0,12h
+dhcp-option=6,192.168.${DEFAULTS[SUBNET]}.1
+dhcp-option=3,192.168.${DEFAULTS[SUBNET]}.1
 dhcp-leasefile=${TMP_DIR}/dhcp.leases
 dhcp-authoritative
 no-hosts
@@ -86,7 +86,7 @@ domain-needed
 bogus-priv
 EOF
         
-    log "DHCP configured: Range=192.168.${SUBNET_OCT}.10-250, DNS=${dns}"
+    log "DHCP configured: Range=192.168.${DEFAULTS[SUBNET]}.10-250, DNS=${dns}"
 }
 
 configure_dns_spoof() {
@@ -119,7 +119,7 @@ configure_dns_spoof() {
     local default_target="${DEFAULTS[SPOOF_TARGET_IP]}"
     # If default target is still empty, use AP IP
     if [[ -z "${default_target}" ]]; then
-        default_target="192.168.${SUBNET_OCT}.1"
+        default_target="192.168.${DEFAULTS[SUBNET]}.1"
     fi
 
     if [[ -n "${ARG[SPOOF_DOMAINS]}" ]]; then
@@ -186,8 +186,8 @@ configure_doh_blocking() {
     
     # Redirect all DNS queries (port 53) to local dnsmasq server
     IPTABLES_RULES+=(
-        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p udp --dport 53 -j REDIRECT --to-port 53"
-        "iptables -t nat -I PREROUTING -i ${INTERFACE} -p tcp --dport 53 -j REDIRECT --to-port 53"
+        "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p udp --dport 53 -j REDIRECT --to-port 53"
+        "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 53 -j REDIRECT --to-port 53"
     )
     
     log "DoH blocking enabled. All DNS traffic will be redirected to local DNS server."

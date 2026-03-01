@@ -45,8 +45,8 @@ enable_packet_capture(){
         fi
 
         # Verify interface exists and is up
-        if ! ip link show "${INTERFACE}" >/dev/null 2>&1; then
-            error "Interface ${INTERFACE} does not exist or is not accessible"
+        if ! ip link show "${DEFAULTS[INTERFACE]}" >/dev/null 2>&1; then
+            error "Interface ${DEFAULTS[INTERFACE]} does not exist or is not accessible"
             return 1
         fi
 
@@ -58,7 +58,7 @@ enable_packet_capture(){
         local capture_err="${LOG_DIR}/tshark_error.log"
         
         # Start tshark with proper error logging
-        tshark -i "${INTERFACE}" -w "${TMP_CAPTURE}" \
+        tshark -i "${DEFAULTS[INTERFACE]}" -w "${TMP_CAPTURE}" \
             -f "not arp and not stp" >> "${capture_log}" 2>> "${capture_err}" &
         TSHARK_PID=$!
         

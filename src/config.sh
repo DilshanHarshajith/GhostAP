@@ -50,7 +50,7 @@ save_config() {
 cat > "${config_file}" << EOF
 # GhostAP Configuration File
 
-INTERFACE="${INTERFACE}"
+INTERFACE="${DEFAULTS[INTERFACE]}"
 SSID="${DEFAULTS[SSID]}"
 CHANNEL="${DEFAULTS[CHANNEL]}"
 SUBNET="${DEFAULTS[SUBNET]}"
@@ -179,7 +179,7 @@ parse_arguments() {
             --capture)
                 DEFAULTS[PACKET_CAPTURE]=true
                 ARG[PACKET_CAPTURE]=1
-                if [[ -n "${2:-}" ]]; then
+                if [[ -n "${2:-}" && ! "$2" =~ ^- ]]; then
                     DEFAULTS[CAPTURE_FILE]="$2"
                     ARG[CAPTURE_FILE]=1
                     shift 2
@@ -241,18 +241,21 @@ parse_arguments() {
             --local-proxy)
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_LOCAL"
                 DEFAULTS[PROXY_ENABLED]=true
+                ARG[PROXY_ENABLED]=1
                 ARG[PROXY_MODE]=1
                 shift
                 ;;
             --remote-proxy)
                 DEFAULTS[PROXY_MODE]="REMOTE_DNAT"
                 DEFAULTS[PROXY_ENABLED]=true
+                ARG[PROXY_ENABLED]=1
                 ARG[PROXY_MODE]=1
                 shift
                 ;;
             --proxy)
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_UPSTREAM"
                 DEFAULTS[PROXY_ENABLED]=true
+                ARG[PROXY_ENABLED]=1
                 ARG[PROXY_MODE]=1
                 shift
                 ;;
@@ -260,6 +263,7 @@ parse_arguments() {
                 [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_HOST]="$2"
                 DEFAULTS[PROXY_ENABLED]=true # Implicitly enable proxy if setting host
+                ARG[PROXY_ENABLED]=1
                 ARG[PROXY_HOST]=1
                 shift 2
                 ;;
@@ -267,6 +271,7 @@ parse_arguments() {
                 [[ -z "${2:-}" ]] && error "Missing argument for $1"
                 DEFAULTS[PROXY_PORT]="$2"
                 DEFAULTS[PROXY_ENABLED]=true
+                ARG[PROXY_ENABLED]=1
                 ARG[PROXY_PORT]=1
                 shift 2
                 ;;

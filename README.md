@@ -13,7 +13,6 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 - **DoH Blocking**: Block DNS-over-HTTPS to enforce DNS spoofing
 - **Proxy Integration**: Tool-agnostic support for local transparent proxies, redsocks (upstream), and remote DNAT
 - **Intercept Traffic**: Easily bridge traffic to tools like `mitmproxy`, `Burp Suite`, or `Wireshark`
-- **Monitor Mode**: Enable wireless monitoring capabilities
 - **Interactive & CLI Modes**: Flexible configuration options
 - **Configuration Management**: Save and load configurations with CLI argument overrides
 - **Comprehensive Logging**: Detailed operation logs for all services
@@ -88,9 +87,9 @@ sudo ./GhostAP.sh -i wlan0 -s "MySecureAP" -c 6 --security wpa2 --password "pass
 #### Access Point with Packet Capture
 
 ```bash
-sudo ./GhostAP.sh -i wlan0 -s "MonitorAP" --capture --monitor
+sudo ./GhostAP.sh -i wlan0 -s "MonitorAP" --capture
 # or
-sudo ./GhostAP.sh -i wlan0 -s "MonitorAP" --capture "capture.pcap" --monitor
+sudo ./GhostAP.sh -i wlan0 -s "MonitorAP" --capture "capture.pcap"
 ```
 
 #### Access Point with Proxy Routing
@@ -146,7 +145,6 @@ sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 
 | Option              | Description                                                         |
 | ------------------- | ------------------------------------------------------------------- |
-| `--monitor`         | Enable monitor mode                                                 |
 | `--internet`        | Enable internet sharing                                             |
 | `--capture [FILE]`  | Enable packet capture                                               |
 | `--spoof "DOMAINS"` | Enable DNS spoofing (Format: `dom.com=1.2.3.4\|dom2.com\|...`)      |
@@ -247,12 +245,10 @@ sudo ./GhostAP.sh --spoof "example.com" --block-doh
 > [!IMPORTANT]
 > Use `--block-doh` to block DNS-over-HTTPS traffic and force clients to use your DNS server. This prevents clients from bypassing DNS spoofing by using encrypted DNS services like Google DoH or Cloudflare DoH.
 
-### Packet Capture
-
-Captured packets are saved to the `Output` directory with timestamps:
+Captured packets are saved to the current directory (or specified path) with timestamps:
 
 ```bash
-ls -la Output/*.pcap
+ls -la *.pcap
 ```
 
 ### Proxy Routing
@@ -326,15 +322,7 @@ GhostAP/
     └── services.sh      # Service lifecycle management
 ```
 
-### Runtime Directory Structure
-
-```
-GhostAP/
-├── Config/          # Saved configuration files
-├── Logs/            # Service logs (hostapd, dnsmasq, tshark, etc.)
-├── Output/          # Packet capture files (.pcap)
-└── Temp/            # Temporary runtime files
-```
+````
 
 ## Monitoring and Logs
 
@@ -342,7 +330,7 @@ GhostAP/
 
 ```bash
 tail -f Logs/GhostAP.log
-```
+````
 
 ### Service-specific Logs
 
@@ -356,10 +344,9 @@ tail -f Logs/GhostAP.log
 ⚠️ **Important Security Notes:**
 
 1. **Legal Usage**: Only use this tool on networks you own or have explicit permission to test
-2. **Monitor Mode**: Can interfere with normal wireless operations
-3. **Packet Capture**: May capture sensitive information - handle responsibly
-4. **DNS Spoofing**: Can redirect legitimate traffic - use carefully
-5. **Proxy Routing**: All traffic may be intercepted - ensure proper authorization
+2. **Packet Capture**: May capture sensitive information - handle responsibly
+3. **DNS Spoofing**: Can redirect legitimate traffic - use carefully
+4. **Proxy Routing**: All traffic may be intercepted - ensure proper authorization
 
 ## Troubleshooting
 

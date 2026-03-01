@@ -100,7 +100,7 @@ configure_hostapd() {
     fi
 
     cat > "${config_file}" << EOF
-interface=${INTERFACE}
+interface=${DEFAULTS[INTERFACE]}
 driver=nl80211
 ssid=${ssid}
 channel=${channel}

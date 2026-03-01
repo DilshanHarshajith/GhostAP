@@ -24,8 +24,6 @@ debug() {
 cleanup() {
     log "Starting cleanup process..."
     local cleanup_errors=0
-
-    rm -rf "${TMP_DIR}"
     
     for pid in "${PIDS[@]}"; do
         if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
@@ -41,7 +39,7 @@ cleanup() {
         fi
     done
     
-    pkill -f "tshark.*${INTERFACE}" 2>/dev/null || true
+    pkill -f "tshark.*${DEFAULTS[INTERFACE]}" 2>/dev/null || true
     pkill -f "redsocks" 2>/dev/null || true
     
     # VPN Cleanup
@@ -49,12 +47,13 @@ cleanup() {
     
     sync
     move_capture_file
+    rm -rf "${TMP_DIR}"
 
-    if [[ -n "${INTERFACE}" ]]; then
-        ip link set "${INTERFACE}" down
-        iw dev "${INTERFACE}" set type managed
-        ip link set "${INTERFACE}" up
-        nmcli device set "${INTERFACE}" managed yes 2>/dev/null || warn "Failed to disable NetworkManager for ${INTERFACE}"
+    if [[ -n "${DEFAULTS[INTERFACE]}" ]]; then
+        ip link set "${DEFAULTS[INTERFACE]}" down
+        iw dev "${DEFAULTS[INTERFACE]}" set type managed
+        ip link set "${DEFAULTS[INTERFACE]}" up
+        nmcli device set "${DEFAULTS[INTERFACE]}" managed yes 2>/dev/null || warn "Failed to disable NetworkManager for ${DEFAULTS[INTERFACE]}"
     fi
     
     for ((i=${#APPLIED_RULES[@]}-1; i>=0; i--)); do
@@ -62,16 +61,16 @@ cleanup() {
         eval "${APPLIED_RULES[i]}" 2>/dev/null || ((cleanup_errors++))
     done
 
-    if command -v tc >/dev/null && [[ -n "${INTERFACE}" ]]; then
-        tc qdisc del dev "${INTERFACE}" root 2>/dev/null || true
+    if command -v tc >/dev/null && [[ -n "${DEFAULTS[INTERFACE]}" ]]; then
+        tc qdisc del dev "${DEFAULTS[INTERFACE]}" root 2>/dev/null || true
     fi
     
     if [[ ${EUID} -eq 0 ]]; then
         sysctl -qw net.ipv4.ip_forward=0
         sysctl -qw net.ipv4.conf.all.forwarding=0
         sysctl -qw net.ipv4.conf.all.send_redirects=1
-        if [[ -n "${INTERFACE}" ]]; then
-            sysctl -qw net.ipv4.conf."${INTERFACE}".accept_redirects=1
+        if [[ -n "${DEFAULTS[INTERFACE]}" ]]; then
+            sysctl -qw net.ipv4.conf."${DEFAULTS[INTERFACE]}".accept_redirects=1
         fi
     fi
 

@@ -50,27 +50,25 @@ show_status() {
     echo "=========================================="
     echo "              GhostAP Status               "
     echo "=========================================="
-    echo "Interface: ${INTERFACE}"
+    echo "Interface: ${DEFAULTS[INTERFACE]}"
     echo "SSID: ${DEFAULTS[SSID]}"
     echo "Channel: ${DEFAULTS[CHANNEL]}"
     echo "Security: ${DEFAULTS[SECURITY]}"
-    echo "IP Address: 192.168.${SUBNET_OCT}.1"
-    echo "DHCP Range: 192.168.${SUBNET_OCT}.10-250"
+    echo "IP Address: 192.168.${DEFAULTS[SUBNET]}.1"
+    echo "DHCP Range: 192.168.${DEFAULTS[SUBNET]}.10-250"
     echo "DNS Server: ${DEFAULTS[DNS]}"
-    echo "Internet Sharing(From): ${SOURCE_INTERFACE:-Disabled}"
-
+    echo "Internet Sharing(From): ${DEFAULTS[SOURCE_INTERFACE]:-Disabled}"
     if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
-        echo "VPN Routing: Enabled (${VPN_INTERFACE:-Pending}) - Config: ${DEFAULTS[VPN_CONFIG]:-None}"
+        echo "VPN Routing: Enabled (${DEFAULTS[VPN_INTERFACE]:-Pending}) - Config: ${DEFAULTS[VPN_CONFIG]:-None}"
     else
         echo "VPN Routing: Disabled"
     fi
-
     echo "DNS Spoofing: ${DEFAULTS[DNS_SPOOFING]}"
     echo "Packet Capture: ${DEFAULTS[PACKET_CAPTURE]}"
     echo "Proxy Enabled: ${DEFAULTS[PROXY_ENABLED]}"
     [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]] && echo "Proxy: ${DEFAULTS[PROXY_TYPE]:-http}://${DEFAULTS[PROXY_HOST]:-127.0.0.1}:${DEFAULTS[PROXY_PORT]} (Mode: ${DEFAULTS[PROXY_MODE]})"
     echo "VPN Routing Enabled: ${DEFAULTS[VPN_ROUTING]}"
-    [[ ${DEFAULTS[VPN_ROUTING]} == true ]] && echo "VPN Config: ${DEFAULTS[VPN_CONFIG]}":"VPN Interface: ${VPN_INTERFACE}":"VPN Credentials: ${DEFAULTS[VPN_CREDS]}"
+    [[ ${DEFAULTS[VPN_ROUTING]} == true ]] && echo "VPN Config: ${DEFAULTS[VPN_CONFIG]}":"VPN Interface: ${DEFAULTS[VPN_INTERFACE]}":"VPN Credentials: ${DEFAULTS[VPN_CREDS]}"
     echo "Running PIDs: ${PIDS[*]}"
     echo "Config Dir: ${CONFIG_DIR}"
     echo "Setup Dir: ${SETUP_DIR}"
@@ -100,6 +98,7 @@ Basic Options:
 Interface Options:
   -i, --interface IFACE        Wireless interface to use
   -si, --source-interface IFACE Source interface for internet sharing
+  -m, --mac MAC                MAC address to use (BSSID)
 
 Network Options:
   -s, --ssid SSID             Network name (SSID)
