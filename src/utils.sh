@@ -124,12 +124,28 @@ check_dependencies() {
     done
     
     if [[ ${#missing[@]} -gt 0 ]]; then
-        error "Missing required dependencies: ${missing[*]}. Install with: apt install hostapd dnsmasq wireless-tools iptables iproute2"
+        local req_packages=""
+        for m in "${missing[@]}"; do
+            case "$m" in
+                iw) req_packages+=" wireless-tools" ;;
+                ip) req_packages+=" iproute2" ;;
+                *) req_packages+=" $m" ;;
+            esac
+        done
+        error "Missing required dependencies: ${missing[*]}. Install with: apt install${req_packages}"
     fi
     
     if [[ ${#missing_optional[@]} -gt 0 ]]; then
         warn "Missing optional dependencies: ${missing_optional[*]}. Some features may be unavailable."
-        warn "Install with: apt install wireshark-common redsocks"
+        local opt_packages=""
+        for m in "${missing_optional[@]}"; do
+            case "$m" in
+                tshark) opt_packages+=" tshark" ;;
+                wg-quick) opt_packages+=" wireguard-tools" ;;
+                *) opt_packages+=" $m" ;;
+            esac
+        done
+        warn "Install with: apt install${opt_packages}"
     fi
 }
 
