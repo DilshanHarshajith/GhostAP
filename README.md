@@ -12,6 +12,8 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 - **DNS Spoofing**: Redirect specific domains to custom IP addresses
 - **DoH Blocking**: Block DNS-over-HTTPS to enforce DNS spoofing
 - **Proxy Integration**: Tool-agnostic support for local transparent proxies, redsocks (upstream), and remote DNAT
+- **VPN Routing**: Securely route all AP traffic through OpenVPN, WireGuard, or a pre-configured VPN interface
+- **VPN Kill Switch**: Prevent traffic leaks with a built-in firewall kill switch
 - **Intercept Traffic**: Easily bridge traffic to tools like `mitmproxy`, `Burp Suite`, or `Wireshark`
 - **Interactive & CLI Modes**: Flexible configuration options
 - **Configuration Management**: Save and load configurations with CLI argument overrides
@@ -41,8 +43,10 @@ sudo apt install wireshark-common
 # For proxy routing
 sudo apt install redsocks
 
+# For VPN routing (optional)
+sudo apt install openvpn wireguard-tools
+
 # For advanced interception (optional)
-# You can use tools like mitmproxy or Burp Suite
 sudo apt install mitmproxy
 ```
 
@@ -56,10 +60,25 @@ cd GhostAP
 chmod +x GhostAP.sh
 ```
 
-2. Run with root privileges:
+3. Run with root privileges:
 
 ```bash
 sudo ./GhostAP.sh
+```
+
+### Installation as Debian Package (Recommended)
+
+1. Download the latest `.deb` package from the [Releases](https://github.com/DilshanHarshajith/GhostAP/releases) page.
+2. Install using `apt`:
+
+```bash
+sudo apt install ./ghostap_*.deb
+```
+
+3. Run from anywhere:
+
+```bash
+sudo ghostap
 ```
 
 ## Usage
@@ -110,6 +129,19 @@ sudo ./GhostAP.sh -i wlan0 --clone "Target_SSID"
 sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 ```
 
+#### Secure Access Point with VPN Routing
+
+```bash
+# Using an OpenVPN config
+sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn "/path/to/vpn.ovpn"
+
+# Using a WireGuard config
+sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn "/path/to/wg0.conf"
+
+# Routing through an existing VPN interface
+sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
+```
+
 ## Command Line Options
 
 ### Basic Options
@@ -123,11 +155,14 @@ sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 
 ### Interface Options
 
-| Option                          | Description                           |
-| ------------------------------- | ------------------------------------- |
-| `-i, --interface IFACE`         | Wireless interface to use             |
-| `-si, --source-interface IFACE` | Source interface for internet sharing |
-| `--clone SSID`                  | Clone an existing AP by SSID          |
+| Option                          | Description                               |
+| ------------------------------- | ----------------------------------------- |
+| `-i, --interface IFACE`         | Wireless interface to use                 |
+| `-si, --source-interface IFACE` | Source interface for internet sharing     |
+| `--vpn [CONFIG]`                | Enable VPN routing (optional .ovpn/.conf) |
+| `--vpn-interface IFACE`         | Use an existing VPN interface             |
+| `--vpn-creds USER:PASS`         | OpenVPN credentials (non-interactive)     |
+| `--clone SSID`                  | Clone an existing AP by SSID              |
 
 ### Network Options
 
@@ -153,17 +188,16 @@ sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 
 ### Proxy Options
 
-| Option              | Description                                                     |
-| ------------------- | --------------------------------------------------------------- |
-| `--local-proxy`     | Shortcut for `--proxy-mode TRANSPARENT_LOCAL`                   |
-| `--remote-proxy`    | Shortcut for `--proxy-mode REMOTE_DNAT`                         |
-| `--proxy`           | Shortcut for `--proxy-mode TRANSPARENT_UPSTREAM`                |
-| `--proxy-mode MODE` | Proxy mode (TRANSPARENT_LOCAL/TRANSPARENT_UPSTREAM/REMOTE_DNAT) |
-| `--proxy-host HOST` | Proxy server host/IP                                            |
-| `--proxy-port PORT` | Proxy server port                                               |
-| `--proxy-type TYPE` | Proxy type (http/socks4/socks5)                                 |
-| `--proxy-user USER` | Proxy username                                                  |
-| `--proxy-pass PASS` | Proxy password                                                  |
+| Option              | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| `--local-proxy`     | Redirect traffic to local port (default 8080)    |
+| `--remote-proxy`    | Redirect traffic to a remote host/port (DNAT)    |
+| `--proxy`           | Redirect traffic to an upstream proxy (redsocks) |
+| `--proxy-host HOST` | Proxy server host/IP                             |
+| `--proxy-port PORT` | Proxy server port                                |
+| `--proxy-type TYPE` | Proxy type (http/socks4/socks5)                  |
+| `--proxy-user USER` | Proxy username                                   |
+| `--proxy-pass PASS` | Proxy password                                   |
 
 ## Configuration Management
 
@@ -207,16 +241,22 @@ CLONE_SSID=""
 # Proxy Options
 PROXY_ENABLED="false"
 PROXY_MODE="TRANSPARENT_LOCAL"
-PROXY_BACKEND=""
-PROXY_LOCATION=""
 PROXY_HOST=""
 PROXY_PORT=""
 PROXY_TYPE=""
 PROXY_USER=""
 PROXY_PASS=""
 
+# VPN Options
+VPN_ROUTING="false"
+VPN_INTERFACE=""
+VPN_CONFIG=""
+VPN_CREDS=""
+
 # DNS Spoofing Options
 SPOOF_DOMAINS=""
+SPOOF_TARGET_IP=""
+BLOCK_DOH="false"
 ```
 
 ## Advanced Features
@@ -300,6 +340,26 @@ The script monitors connected clients in real-time by watching DHCP leases. It d
 - MAC Address
 - Assigned IP Address
 - Device Hostname (if available)
+
+### VPN Routing
+
+GhostAP provides robust VPN routing using Policy-Based Routing (PBR):
+
+- **Traffic Isolation**: All traffic from the AP is routed through the VPN tunnel.
+- **Kill Switch**: Built-in firewall rules prevent traffic leaks if the VPN connection drops.
+- **Multiple Backends**:
+  - **OpenVPN**: Full support for `.ovpn` configurations with credential management.
+  - **WireGuard**: Native support for `.conf` profiles.
+  - **Existing Interface**: Use already running VPN tunnels (tun, wg, proton, etc.).
+- **Automatic Configuration**: Detects and configures routing tables and NAT rules automatically.
+
+```bash
+# Enable VPN with an OpenVPN profile
+sudo ./GhostAP.sh --vpn client.ovpn --vpn-creds "user:pass"
+```
+
+> [!CAUTION]
+> When VPN routing is enabled, a kill switch is active. This will block all internet traffic from clients if the VPN interface is not up.
 
 ## Architecture
 
@@ -409,7 +469,7 @@ Contributions are welcome! Please ensure:
 
 ## License
 
-Licensed under the Apache License, Version 2.0
+Licensed under the GNU General Public License v3
 
 ## Support
 
