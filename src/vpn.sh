@@ -67,14 +67,14 @@ configure_vpn() {
                 # A simple check is to find the newest tun interface or just check if any new tun exists
                 local new_tun=$(ip link show | grep -o 'tun[0-9]*' | tail -n1)
                 if [[ -n "${new_tun}" ]]; then
-                    VPN_INTERFACE="${new_tun}"
+                    DEFAULTS[VPN_CONFIG]="${new_tun}"
                     break
                 fi
                 sleep 1
                 ((attempts++))
             done
             
-            if [[ -z "${VPN_INTERFACE}" ]]; then
+            if [[ -z "${DEFAULTS[VPN_CONFIG]}" ]]; then
                 error "OpenVPN failed to create a tun interface in time."
             fi
             
@@ -88,7 +88,7 @@ configure_vpn() {
             # wg-quick up takes the filename as interface name
             local wg_iface=$(basename "${VPN_TEMP_CONF}" .conf)
             wg-quick up "${VPN_TEMP_CONF}" || error "Failed to start WireGuard."
-            VPN_INTERFACE="${wg_iface}"
+            DEFAULTS[VPN_CONFIG]="${wg_iface}"
         else
             error "Unsupported VPN config extension. Must be .ovpn or .conf"
         fi
@@ -101,28 +101,28 @@ configure_vpn() {
                 error "No existing VPN interfaces found and no config provided."
             fi
             if [[ "${INTERACTIVE_MODE}" == true ]]; then
-                VPN_INTERFACE=$(select_from_list "Select existing VPN interface for routing:" "${interfaces[@]}")
+                DEFAULTS[VPN_CONFIG]=$(select_from_list "Select existing VPN interface for routing:" "${interfaces[@]}")
             else
-                VPN_INTERFACE="${interfaces[0]}"
-                warn "No VPN config provided, auto-selected existing interface: ${VPN_INTERFACE}"
+                DEFAULTS[VPN_CONFIG]="${interfaces[0]}"
+                warn "No VPN config provided, auto-selected existing interface: ${DEFAULTS[VPN_CONFIG]}"
             fi
         fi
 
     # Check connectivity on VPN interface momentarily
-    log "Checking connectivity on ${VPN_INTERFACE}..."
+    log "Checking connectivity on ${DEFAULTS[VPN_CONFIG]}..."
     sleep 2 # Short delay to let the interface assign IP
     
     # Establish Policy Based Routing
-    log "Setting up Policy Based Routing (PBR) for ${INTERFACE} -> ${VPN_INTERFACE}"
+    log "Setting up Policy Based Routing (PBR) for ${DEFAULTS[INTERFACE]} -> ${DEFAULTS[VPN_CONFIG]}"
     
     # 1. Sysctl forwarding
     sysctl -w net.ipv4.ip_forward=1 >/dev/null || warn "Failed to enable IP forwarding"
     
     # 2. Add routing table 200 rule for AP traffic
-    ip rule add iif "${INTERFACE}" lookup 200 2>/dev/null || true
+    ip rule add iif "${DEFAULTS[INTERFACE]}" lookup 200 2>/dev/null || true
     
     # 3. Add default route in table 200 via the VPN interface
-    ip route add default dev "${VPN_INTERFACE}" table 200 2>/dev/null || true
+    ip route add default dev "${DEFAULTS[VPN_CONFIG]}" table 200 2>/dev/null || true
     
     # 4. Flush cache
     ip route flush cache
@@ -130,24 +130,24 @@ configure_vpn() {
     # 5. IPTables NAT and Forwarding
     # Masquerade traffic going out of the VPN interface
     IPTABLES_RULES+=(
-        "iptables -t nat -A POSTROUTING -o ${VPN_INTERFACE} -j MASQUERADE"
-        "iptables -A FORWARD -i ${VPN_INTERFACE} -o ${INTERFACE} -m state --state RELATED,ESTABLISHED -j ACCEPT"
-        "iptables -A FORWARD -i ${INTERFACE} -o ${VPN_INTERFACE} -j ACCEPT"
+        "iptables -t nat -A POSTROUTING -o ${DEFAULTS[VPN_CONFIG]} -j MASQUERADE"
+        "iptables -A FORWARD -i ${DEFAULTS[VPN_CONFIG]} -o ${DEFAULTS[INTERFACE]} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+        "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} -o ${DEFAULTS[VPN_CONFIG]} -j ACCEPT"
         # AP client-to-client traffic
-        "iptables -A FORWARD -i ${INTERFACE} -o ${INTERFACE} -j ACCEPT"
+        "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} -o ${DEFAULTS[INTERFACE]} -j ACCEPT"
         # VPN Kill switch: drop any traffic from AP that is NOT going to VPN interface
-        "iptables -A FORWARD -i ${INTERFACE} -j DROP"
+        "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} -j DROP"
     )
     
-    log "VPN routing configured successfully on ${VPN_INTERFACE}"
+    log "VPN routing configured successfully on ${DEFAULTS[VPN_CONFIG]}"
 }
 
 cleanup_vpn() {
     log "Cleaning up VPN..."
 
     # Shutdown VPN if active
-    if [[ "${DEFAULTS[VPN_ROUTING]}" == true && -n "${VPN_INTERFACE:-}" ]]; then
-        log "Shutting down VPN interface: ${VPN_INTERFACE}"
+    if [[ "${DEFAULTS[VPN_ROUTING]}" == true && -n "${DEFAULTS[VPN_CONFIG]:-}" ]]; then
+        log "Shutting down VPN interface: ${DEFAULTS[VPN_CONFIG]}"
         if [[ -f "${TMP_DIR}/openvpn.pid" ]]; then
             log "Stopping OpenVPN via PID..."
             kill -15 "$(<"${TMP_DIR}/openvpn.pid")" 2>/dev/null || true
@@ -155,7 +155,7 @@ cleanup_vpn() {
         fi
         
         # Flush custom routing table 200
-        ip rule del iif "${INTERFACE}" lookup 200 2>/dev/null || true
+        ip rule del iif "${DEFAULTS[INTERFACE]}" lookup 200 2>/dev/null || true
         ip route flush table 200 2>/dev/null || true
     fi
     
@@ -168,7 +168,7 @@ cleanup_vpn() {
         rm -f "${VPN_TEMP_CONF}"
     fi
     if [[ "${DEFAULTS[VPN_ROUTING]:-false}" == true ]]; then
-        ip rule del iif "${INTERFACE}" lookup 200 2>/dev/null || true
+        ip rule del iif "${DEFAULTS[INTERFACE]}" lookup 200 2>/dev/null || true
         ip route flush table 200 2>/dev/null || true
     fi
     [[ -f $creds_file ]] && rm $creds_file
