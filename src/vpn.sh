@@ -69,7 +69,7 @@ configure_vpn() {
             local openvpn_cmd=(openvpn --config "$vpn_config" --daemon --writepid "${TMP_DIR}/openvpn.pid")
 
             if grep -q "^auth-user-pass" "$vpn_config"; then
-                # FIX #2: Guard credential prompt — only prompt in interactive mode.
+                # Guard credential prompt — only prompt in interactive mode.
                 # In non-interactive mode require credentials to be passed via --vpn-creds.
                 if [[ -z "${vpn_creds}" ]]; then
                     if [[ "${INTERACTIVE_MODE}" != true ]]; then
@@ -92,11 +92,11 @@ configure_vpn() {
 
             "${openvpn_cmd[@]}"
 
-            # FIX #5: Give OpenVPN a moment to start then verify it didn't crash immediately.
+            # Give OpenVPN a moment to start then verify it didn't crash immediately.
             sleep 1
             if [[ -f "${TMP_DIR}/openvpn.pid" ]]; then
                 VPN_PID=$(cat "${TMP_DIR}/openvpn.pid")
-                # FIX #1: Register PID exactly once, outside the detection loop.
+                # Register PID exactly once, outside the detection loop.
                 PIDS+=("${VPN_PID}")
                 if ! kill -0 "${VPN_PID}" 2>/dev/null; then
                     warn "OpenVPN process (PID ${VPN_PID}) died immediately. Check your config and credentials. Skipping VPN feature."
@@ -144,7 +144,7 @@ configure_vpn() {
             log "Starting WireGuard with ${vpn_config}"
             VPN_TEMP_CONF="${TMP_DIR}/wg_ap.conf"
             cp "${vpn_config}" "${VPN_TEMP_CONF}"
-            # FIX #4: Restrict permissions on the WireGuard config immediately after
+            # Restrict permissions on the WireGuard config immediately after
             # copying — it contains a private key and must not be world-readable.
             chmod 600 "${VPN_TEMP_CONF}"
 
@@ -154,7 +154,7 @@ configure_vpn() {
                 return 1
             }
 
-            # FIX #7: Derive the interface name from the config filename rather than
+            # Derive the interface name from the config filename rather than
             # hardcoding it, so refactors to TMP_DIR or filename stay consistent.
             vpn_interface="$(basename "${VPN_TEMP_CONF}" .conf)"
             DEFAULTS[VPN_INTERFACE]="${vpn_interface}"
@@ -194,7 +194,7 @@ configure_vpn() {
         DEFAULTS[VPN_INTERFACE]="${vpn_interface}"
     fi
 
-    # FIX #3: Actually verify connectivity on the VPN interface instead of just sleeping.
+    # Actually verify connectivity on the VPN interface instead of just sleeping.
     log "Checking connectivity on ${vpn_interface}..."
     local connected=false
     for i in {1..10}; do
@@ -250,7 +250,7 @@ cleanup_vpn() {
         ip route flush table 200 2>/dev/null || true
 
         # 2. Shutdown OpenVPN if started by us
-        # FIX #8: Wait for graceful SIGTERM, then force-kill if still running.
+        # Wait for graceful SIGTERM, then force-kill if still running.
         if [[ -f "${TMP_DIR}/openvpn.pid" ]]; then
             local pid
             pid=$(cat "${TMP_DIR}/openvpn.pid")
