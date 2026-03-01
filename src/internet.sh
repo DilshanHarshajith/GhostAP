@@ -63,15 +63,17 @@ enable_internet_sharing() {
         if [[ -n "${DEFAULTS[SOURCE_INTERFACE]}" ]]; then
             log "Enabling internet sharing..."
             
-            if ! sysctl -w net.ipv4.ip_forward=1 >/dev/null; then
-                warn "Failed to enable IP forwarding"
-            fi
+            enable_forwarding
             
-            IPTABLES_RULES+=(
-                "iptables -t nat -I POSTROUTING -o ${DEFAULTS[SOURCE_INTERFACE]} -j MASQUERADE"
-                "iptables -I FORWARD -i ${DEFAULTS[SOURCE_INTERFACE]} -o ${DEFAULTS[INTERFACE]} -m state --state RELATED,ESTABLISHED -j ACCEPT"
-                "iptables -I FORWARD -i ${DEFAULTS[INTERFACE]} -o ${DEFAULTS[SOURCE_INTERFACE]} -j ACCEPT"
-            )
+            if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+                log "VPN routing is active. Skipping cleartext MASQUERADE/FORWARD rules to prevent VPN leaks."
+            else
+                IPTABLES_RULES+=(
+                    "iptables -t nat -I POSTROUTING -o ${DEFAULTS[SOURCE_INTERFACE]} -j MASQUERADE"
+                    "iptables -I FORWARD -i ${DEFAULTS[SOURCE_INTERFACE]} -o ${DEFAULTS[INTERFACE]} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+                    "iptables -I FORWARD -i ${DEFAULTS[INTERFACE]} -o ${DEFAULTS[SOURCE_INTERFACE]} -j ACCEPT"
+                )
+            fi
             
             if command -v tc >/dev/null; then
                 tc qdisc add dev "${DEFAULTS[INTERFACE]}" root handle 1: htb default 30 2>/dev/null || true

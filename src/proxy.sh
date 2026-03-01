@@ -148,9 +148,16 @@ setup_proxy() {
 
 setup_local_transparent_proxy() {
     local port="${DEFAULTS[PROXY_PORT]:-8080}"
+
+    if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+        error "TRANSPARENT_LOCAL proxy is incompatible with VPN routing: the proxy tool's" \
+              "re-originated traffic cannot be marked and will leak outside the VPN." \
+              "Use --proxy-mode TRANSPARENT_UPSTREAM (redsocks) with --vpn instead."
+    fi
+
     log "Setting up Local Transparent Proxy on port ${port}..."
-    sysctl -qw net.ipv4.ip_forward=1
-    
+    enable_forwarding
+
     # Redirect HTTP/HTTPS to local proxy port
     IPTABLES_RULES+=(
         "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 80 -j REDIRECT --to-port ${port}"
@@ -168,7 +175,15 @@ setup_remote_dnat() {
     if [[ -z "${proxy_ip}" || -z "${proxy_port}" ]]; then
         error "Remote Host/Port required for Remote DNAT"
     fi
-    
+
+    if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+        error "REMOTE_DNAT proxy is incompatible with the VPN kill switch: DNAT'd" \
+              "traffic is forwarded toward the external DNAT host via the normal" \
+              "interface, not vpn_interface, and is dropped by the kill switch." \
+              "Either disable VPN routing or use TRANSPARENT_UPSTREAM (redsocks)" \
+              "so traffic is properly marked and tunnelled through the VPN."
+    fi
+
     log "Setting up Remote Forwarding (DNAT) to ${proxy_ip}:${proxy_port}..."
     IPTABLES_RULES+=(
         "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 80  -j DNAT --to-destination ${proxy_ip}:${proxy_port}"
@@ -222,7 +237,7 @@ EOF
     }
     echo "}" >> "${redsocks_conf}"
 
-    if ! redsocks -c "${redsocks_conf}"; then
+    if ! redsocks -c "${redsocks_conf}" -u nobody; then
         warn "Failed to start redsocks"
         return 1
     fi
@@ -245,5 +260,10 @@ EOF
             "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 80 -j REDIRECT --to-port 12345"
             "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 443 -j REDIRECT --to-port 12345"
         )
+        if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+            IPTABLES_RULES+=(
+                "iptables -t mangle -A OUTPUT -p tcp -m owner --uid-owner nobody -j MARK --set-mark 0x100"
+            )
+        fi
     fi
 }

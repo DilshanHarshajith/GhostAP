@@ -41,7 +41,9 @@ cleanup() {
     
     pkill -f "tshark.*${DEFAULTS[INTERFACE]}" 2>/dev/null || true
     pkill -f "redsocks" 2>/dev/null || true
-
+    
+    cleanup_vpn
+    
     sync
     move_capture_file
     rm -rf "${TMP_DIR}"
