@@ -65,7 +65,7 @@ cleanup() {
     fi
     
     if [[ ${EUID} -eq 0 ]]; then
-        sysctl -qw net.ipv4.ip_forward=0
+        sysctl -qw net.ipv4.ip_forward="${ORIGINAL_IP_FORWARD:-0}"
         sysctl -qw net.ipv4.conf.all.forwarding=0
         sysctl -qw net.ipv4.conf.all.send_redirects=1
         if [[ -n "${DEFAULTS[INTERFACE]}" ]]; then
@@ -101,6 +101,17 @@ check_root() {
 check_dependencies() {
     local deps=(hostapd dnsmasq iw iptables ip)
     local optional_deps=(tshark redsocks python3)
+
+    # If VPN is configured, check for the required client upfront
+    if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+        if [[ "${DEFAULTS[VPN_CONFIG]}" == *.ovpn ]]; then
+            optional_deps+=(openvpn)
+        elif [[ "${DEFAULTS[VPN_CONFIG]}" == *.conf ]]; then
+            optional_deps+=(wg-quick)
+        else
+            optional_deps+=(openvpn wg-quick)
+        fi
+    fi
     local missing=()
     local missing_optional=()
     
