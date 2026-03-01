@@ -190,6 +190,13 @@ configure_doh_blocking() {
         "iptables -t nat -I PREROUTING -i ${DEFAULTS[INTERFACE]} -p tcp --dport 53 -j REDIRECT --to-port 53"
     )
     
+    if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
+        IPTABLES_RULES+=(
+            "iptables -t mangle -A OUTPUT -p udp --dport 53 -j MARK --set-mark 0x100"
+            "iptables -t mangle -A OUTPUT -p tcp --dport 53 -j MARK --set-mark 0x100"
+        )
+    fi
+
     log "DoH blocking enabled. All DNS traffic will be redirected to local DNS server."
 }
 

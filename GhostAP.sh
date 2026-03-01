@@ -55,8 +55,8 @@ main() {
     configure_mac_in_interactive
     configure_dhcp
 
-    configure_internet_sharing
     configure_vpn
+    configure_internet_sharing
     configure_proxy
     configure_dns_spoof
     configure_packet_capture

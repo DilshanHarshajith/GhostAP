@@ -90,3 +90,10 @@ get_ap_info() {
     }
   '
 }
+
+enable_forwarding() {
+    if [[ "$(sysctl -n net.ipv4.ip_forward)" != "1" ]]; then
+        log "Enabling IP forwarding..."
+        sysctl -w net.ipv4.ip_forward=1 >/dev/null || warn "Failed to enable IP forwarding"
+    fi
+}

@@ -63,9 +63,7 @@ enable_internet_sharing() {
         if [[ -n "${DEFAULTS[SOURCE_INTERFACE]}" ]]; then
             log "Enabling internet sharing..."
             
-            if ! sysctl -w net.ipv4.ip_forward=1 >/dev/null; then
-                warn "Failed to enable IP forwarding"
-            fi
+            enable_forwarding
             
             if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
                 log "VPN routing is active. Skipping cleartext MASQUERADE/FORWARD rules to prevent VPN leaks."

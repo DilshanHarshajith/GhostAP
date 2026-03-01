@@ -125,11 +125,12 @@ configure_vpn() {
     # Establish Policy Based Routing
     log "Setting up Policy Based Routing (PBR) for ${DEFAULTS[INTERFACE]} -> ${vpn_interface}"
     
-    # 1. Sysctl forwarding
-    sysctl -w net.ipv4.ip_forward=1 >/dev/null || warn "Failed to enable IP forwarding"
+    # 1. Enable forwarding
+    enable_forwarding
     
-    # 2. Add routing table 200 rule for AP traffic
+    # 2. Add routing table 200 rule for AP traffic and marked host traffic
     ip rule add iif "${DEFAULTS[INTERFACE]}" lookup 200 2>/dev/null || true
+    ip rule add fwmark 0x100 lookup 200 2>/dev/null || true
     
     # 3. Add default route in table 200 via the VPN interface
     ip route add default dev "${vpn_interface}" table 200 2>/dev/null || true
@@ -144,7 +145,9 @@ configure_vpn() {
         "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} -o ${vpn_interface} -j ACCEPT"
         "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} -o ${DEFAULTS[INTERFACE]} -j ACCEPT"
         # VPN Kill switch: drop any traffic from AP that is NOT going to VPN interface
-        "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} -j DROP"
+        "iptables -A FORWARD -i ${DEFAULTS[INTERFACE]} ! -o ${vpn_interface} -j DROP"
+        # Prevent marked traffic from leaking via local interfaces
+        "iptables -A OUTPUT -m mark --mark 0x100 ! -o ${vpn_interface} -j DROP"
     )
     
     log "VPN routing configured successfully on ${vpn_interface}"
@@ -156,6 +159,7 @@ cleanup_vpn() {
     if [[ "${DEFAULTS[VPN_ROUTING]:-false}" == true ]]; then
         # 1. Flush custom routing table 200 and rules
         ip rule del iif "${DEFAULTS[INTERFACE]}" lookup 200 2>/dev/null || true
+        ip rule del fwmark 0x100 lookup 200 2>/dev/null || true
         ip route flush table 200 2>/dev/null || true
         
         # 2. Shutdown OpenVPN if started by us
