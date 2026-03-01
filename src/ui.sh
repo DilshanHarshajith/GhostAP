@@ -67,8 +67,7 @@ show_status() {
     echo "Packet Capture: ${DEFAULTS[PACKET_CAPTURE]}"
     echo "Proxy Enabled: ${DEFAULTS[PROXY_ENABLED]}"
     [[ "${DEFAULTS[PROXY_ENABLED]}" == true ]] && echo "Proxy: ${DEFAULTS[PROXY_TYPE]:-http}://${DEFAULTS[PROXY_HOST]:-127.0.0.1}:${DEFAULTS[PROXY_PORT]} (Mode: ${DEFAULTS[PROXY_MODE]})"
-    echo "VPN Routing Enabled: ${DEFAULTS[VPN_ROUTING]}"
-    [[ ${DEFAULTS[VPN_ROUTING]} == true ]] && echo "VPN Config: ${DEFAULTS[VPN_CONFIG]}":"VPN Interface: ${DEFAULTS[VPN_INTERFACE]}":"VPN Credentials: ${DEFAULTS[VPN_CREDS]}"
+    [[ "${DEFAULTS[VPN_ROUTING]}" == true ]] && echo "VPN Config: ${DEFAULTS[VPN_CONFIG]:-None} | VPN Interface: ${DEFAULTS[VPN_INTERFACE]:-Pending} | VPN Credentials: ${DEFAULTS[VPN_CREDS]:-None}"
     echo "Running PIDs: ${PIDS[*]}"
     echo "Config Dir: ${CONFIG_DIR}"
     echo "Setup Dir: ${SETUP_DIR}"
@@ -90,67 +89,81 @@ GhostAP - Wireless Access Point Creator
 Usage: sudo $0 [OPTIONS]
 
 Basic Options:
-  --int, --interactive         Start in interactive mode (default: auto-detect)
-  --config FILE                Load configuration from file
-  --save NAME                  Save current configuration to file with specified name
-  --help, -h                   Show this help message
+  --int, --interactive          Start in interactive mode (default: auto-detect)
+  --config FILE                 Load configuration from file
+  --save NAME                   Save current configuration to file with specified name
+  --help, -h                    Show this help message
 
 Interface Options:
-  -i, --interface IFACE        Wireless interface to use
+  -i, --interface IFACE         Wireless interface to use
   -si, --source-interface IFACE Source interface for internet sharing
-  -m, --mac MAC                MAC address to use (BSSID)
+  -m, --mac MAC                 MAC address to use (BSSID)
 
 Network Options:
-  -s, --ssid SSID             Network name (SSID)
-  -c, --channel CHANNEL       WiFi channel (1-14)
-  --security TYPE             Security type (open/wpa2/wpa3)
-  -p, --password PASSWORD     WiFi password (for WPA2/WPA3)
-  --subnet OCTET              Subnet third octet (0-255)
-  --dns IP                    DNS server IP address
+  -s, --ssid SSID               Network name (SSID)
+  -c, --channel CHANNEL         WiFi channel (1-14)
+  --security TYPE               Security type (open/wpa2/wpa3)
+  --password PASSWORD           WiFi password (for WPA2/WPA3)
+  --subnet OCTET                Subnet third octet (0-255)
+  --dns IP                      DNS server IP address
 
 Feature Options:
+  --internet                    Enable internet sharing
+  --capture [FILE]              Enable packet capture (optional output path)
+  --clone [SSID]                Clone an existing AP by SSID
+  --spoof [DOMAINS]             Enable DNS spoofing
+                                Domains format: domain.com=1.2.3.4|domain2.com=10.0.0.1
+  --spoof-target IP             Default target IP for domains without explicit IP
+  --block-doh                   Block DNS-over-HTTPS to enforce DNS spoofing
 
-  --internet                  Enable internet sharing
-  --vpn                       Enable VPN routing (requires interactive selection or auto-detect)
-  --vpn-config FILE           Enable VPN and auto-start client with the given config (.ovpn or .conf)
-  --capture [FILE]            Enable packet capture
-  --spoof [DOMAINS]           Enable DNS spoofing
-                              Optional domains format: domain.com=192.168.1.1|domain2.com=237.84.2.178
+VPN Options:
+  --vpn [FILE]                  Enable VPN routing; optionally provide a config file
+                                (.ovpn for OpenVPN, .conf for WireGuard)
+  --vpn-interface IFACE         Use an already-running VPN interface
+  --vpn-creds USER:PASS         Credentials for OpenVPN configs that require auth-user-pass
 
 Proxy Options:
-  --local-proxy                Shortcut for --proxy-mode TRANSPARENT_LOCAL
-  --remote-proxy               Shortcut for --proxy-mode REMOTE_DNAT
-  --proxy                      Shortcut for --proxy-mode TRANSPARENT_UPSTREAM
-  --proxy-mode MODE           Proxy mode (TRANSPARENT_LOCAL/TRANSPARENT_UPSTREAM/REMOTE_DNAT)
-  --proxy-host HOST           Proxy server host/IP
-  --proxy-port PORT           Proxy server port (default: 8080)
-  --proxy-type TYPE           Proxy type (http/socks4/socks5)
-  --proxy-user USER           Proxy username
-  --proxy-pass PASS           Proxy password
+  --local-proxy                 Redirect AP traffic to a local interceptor (port 8080)
+                                Run mitmproxy or Burp Suite on that port
+  --remote-proxy                DNAT AP traffic to a remote host (requires --proxy-host/port)
+  --proxy                       Forward AP traffic via redsocks to an upstream proxy
+  --proxy-host HOST             Proxy server host/IP
+  --proxy-port PORT             Proxy server port (default: 8080)
+  --proxy-type TYPE             Upstream proxy type: http / socks4 / socks5
+  --proxy-user USER             Proxy username (optional)
+  --proxy-pass PASS             Proxy password (optional)
 
 Examples:
-  # Basic secure access point
-  sudo $0 -i wlan0 -s "MyAP" -c 6 --security wpa2 -p "password123"
-  
-  # Access point with internet sharing and packet capture
-  sudo $0 --internet --capture "capture.pcap" -si eth0
-  
-  # Access point with proxy routing
-  sudo $0 -i wlan0 --proxy --proxy-host 127.0.0.1 --proxy-port 8080 --proxy-type http
-  
+  # Basic open access point
+  sudo $0 -i wlan0 -s "OpenAP" -c 6 --security open
 
-  # Access point with DNS spoofing
-  sudo $0 -s "TestAP" --spoof "example.com=192.168.1.100|test.com=10.0.0.1"
-  
-  # Save configuration for later use
-  sudo $0 -i wlan0 -s "MyAP" --security wpa2 -p "secret" --save myconfig
-  
-  # Local transparent interception
-  sudo $0 --local-proxy -s "InterceptAP"
-  
-  # Full featured access point
-  sudo $0 -i wlan0 -s "FullAP" -c 11 --security wpa3 -p "strongpass" \
-         --internet -si eth0 --capture --dns 1.1.1.1 --subnet 20
+  # Secure WPA2 access point with internet sharing
+  sudo $0 -i wlan0 -s "MyAP" -c 6 --security wpa2 --password "pass1234" --internet -si eth0
+
+  # Access point with packet capture
+  sudo $0 -i wlan0 -s "CaptureAP" --capture capture.pcap
+
+  # Access point with DNS spoofing and DoH blocking
+  sudo $0 -s "SpoofAP" --spoof "example.com=192.168.1.100|test.com=10.0.0.1" --block-doh
+
+  # Clone an existing access point
+  sudo $0 -i wlan0 --clone "TargetSSID"
+
+  # VPN-routed access point (OpenVPN)
+  sudo $0 -i wlan0 -s "VpnAP" --vpn client.ovpn --internet -si eth0
+
+  # VPN-routed access point with credentials
+  sudo $0 -i wlan0 -s "VpnAP" --vpn client.ovpn --vpn-creds "user:pass"
+
+  # Local transparent interception (run Burp/mitmproxy on port 8080)
+  sudo $0 -i wlan0 -s "InterceptAP" --local-proxy
+
+  # Upstream proxy via redsocks
+  sudo $0 -i wlan0 -s "ProxyAP" --proxy --proxy-host 10.0.0.5 --proxy-port 3128 --proxy-type http
+
+  # Save and reload configuration
+  sudo $0 -i wlan0 -s "MyAP" --security wpa2 --password "secret" --save myconfig
+  sudo $0 --config myconfig
 
 For more information, visit: https://github.com/DilshanHarshajith/GhostAP
 EOF
