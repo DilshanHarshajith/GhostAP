@@ -214,6 +214,10 @@ setup_redsocks_upstream() {
     local redsocks_conf="${REDSOCKS_CONF}"
     local redsocks_pid_file="${TMP_DIR}/redsocks.pid"
 
+    # Restrict permissions BEFORE writing credentials into the file
+    touch "${redsocks_conf}"
+    chmod 600 "${redsocks_conf}"
+
     cat > "${redsocks_conf}" << EOF
 base {
     log_debug = off;
