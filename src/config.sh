@@ -4,22 +4,30 @@ load_config() {
     [[ -f "${CONFIG_FILE}" ]] || return 0
     
     log "Loading configuration from ${CONFIG_FILE}"
-    while IFS='=' read -r key value; do
-        [[ "${key}" =~ ^[[:space:]]*# ]] && continue
-        [[ -z "${key}" ]] && continue
-        
+    while IFS= read -r line; do
+        # Skip blank lines and comments
+        [[ "${line}" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+
+        # Split on the FIRST '=' only — preserves values that contain '='
+        # (passwords, SPOOF_DOMAINS entries like domain.com=1.2.3.4, etc.)
+        local key="${line%%=*}"
+        local value="${line#*=}"
+
+        # Trim whitespace from key
         key="${key#"${key%%[![:space:]]*}"}"
         key="${key%"${key##*[![:space:]]}"}"
+
+        # Trim whitespace and surrounding quotes from value
         value="${value#"${value%%[![:space:]]*}"}"
         value="${value%"${value##*[![:space:]]}"}"
-        
         value="${value#\"}"
         value="${value%\"}"
         value="${value#\'}"
         value="${value%\'}"
-        
+
         if [[ -v DEFAULTS[${key}] ]]; then
-            # Priority: CLI arguments (ARG) > Config file (CONFIG_FILE) > Defaults
+            # Priority: CLI arguments (ARG) > Config file > Defaults
             if [[ -z "${ARG[${key}]}" ]]; then
                 DEFAULTS[${key}]="${value}"
                 debug "Loaded config from file: ${key}=${value}"
