@@ -92,6 +92,11 @@ configure_clone(){
     }
 
     IFS="|" read -r ssid channel mac < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${DEFAULTS[INTERFACE]}")
+
+    if [[ -z "${ssid}" || -z "${channel}" ]]; then
+        error "Clone target '${DEFAULTS[CLONE_SSID]}' was not found in the scan results on ${DEFAULTS[INTERFACE]}." \
+              "Ensure the target AP is in range and try again."
+    fi
     
     if [[ -z "${ARG[SSID]}" ]]; then
         DEFAULTS[SSID]="$ssid"
@@ -114,5 +119,3 @@ configure_clone(){
 
     log "Cloning interface ${DEFAULTS[INTERFACE]} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}"
 }
-
-
