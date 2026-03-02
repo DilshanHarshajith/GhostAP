@@ -1,6 +1,6 @@
 # GhostAP - Wireless Access Point Creator
 
-A comprehensive Bash script for creating wireless access points with advanced features including internet sharing, packet capture, DNS spoofing, proxy routing, and monitor mode capabilities.
+A comprehensive Bash script for creating wireless access points with advanced features including internet sharing, packet capture, DNS spoofing, proxy routing, captive portal, and monitor mode capabilities.
 
 ## Features
 
@@ -11,6 +11,7 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 - **Packet Capture**: Real-time traffic monitoring and PCAP export with tshark
 - **DNS Spoofing**: Redirect specific domains to custom IP addresses
 - **DoH Blocking**: Block DNS-over-HTTPS to enforce DNS spoofing
+- **Captive Portal**: Intercept clients with a customizable portal page; credentials are captured and clients are whitelisted on acceptance
 - **Proxy Integration**: Tool-agnostic support for local transparent proxies, redsocks (upstream), and remote DNAT
 - **VPN Routing**: Securely route all AP traffic through OpenVPN, WireGuard, or a pre-configured VPN interface
 - **VPN Kill Switch**: Prevent traffic leaks with a built-in firewall kill switch
@@ -129,6 +130,17 @@ sudo ./GhostAP.sh -i wlan0 --clone "Target_SSID"
 sudo ./GhostAP.sh --local-proxy -s "InterceptAP"
 ```
 
+#### Captive Portal (intercept clients before granting internet access)
+
+```bash
+# Built-in portal page with internet sharing
+sudo ./GhostAP.sh -i wlan0 -s "FreeWifi" --security open --captive --internet -si eth0
+
+# With a custom HTML template
+sudo ./GhostAP.sh -i wlan0 -s "FreeWifi" --captive --internet -si eth0 \
+    --captive-template /path/to/portal/index.html
+```
+
 #### Secure Access Point with VPN Routing
 
 ```bash
@@ -199,6 +211,14 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 | `--proxy-user USER` | Proxy username                                   |
 | `--proxy-pass PASS` | Proxy password                                   |
 
+### Captive Portal Options
+
+| Option                    | Description                                                  |
+| ------------------------- | ------------------------------------------------------------ |
+| `--captive`               | Enable captive portal (intercepts clients until they submit) |
+| `--captive-port PORT`     | Port for the captive portal server (default: `8880`)         |
+| `--captive-template FILE` | Path to a custom HTML file to use as the portal page         |
+
 ## Configuration Management
 
 ### Saving Configurations
@@ -257,6 +277,11 @@ VPN_CREDS=""
 SPOOF_DOMAINS=""
 SPOOF_TARGET_IP=""
 BLOCK_DOH="false"
+
+# Captive Portal Options
+CAPTIVE_PORTAL="false"
+CAPTIVE_PORT="8880"
+CAPTIVE_TEMPLATE=""
 ```
 
 ## Advanced Features
@@ -361,6 +386,42 @@ sudo ./GhostAP.sh --vpn client.ovpn --vpn-creds "user:pass"
 > [!CAUTION]
 > When VPN routing is enabled, a kill switch is active. This will block all internet traffic from clients if the VPN interface is not up.
 
+### Captive Portal
+
+GhostAP can intercept connecting clients with a captive portal — the same mechanism used by hotel and airport Wi-Fi networks. Clients are blocked from internet access until they submit the portal form (e.g. accept terms, enter credentials).
+
+**How it works:**
+
+1. DNS wildcard (`address=/#/...`) in dnsmasq redirects all lookups to the AP.
+2. An `iptables` rule redirects all client HTTP traffic to the built-in Python portal server.
+3. HTTPS is blocked with a TCP-reset until the client is whitelisted.
+4. When a client submits the form (`POST /accept`), the server:
+   - Logs any submitted fields (credentials, etc.) to a timestamped file in `Output/`.
+   - Inserts per-client `iptables` rules to allow full internet access.
+   - Restores the client's DNS to the real upstream server.
+5. OS captive-portal detection probes (iOS, Android, Windows, Firefox) are handled so the "Sign in to network" dialog appears automatically.
+
+**Custom templates:**
+
+You can supply your own HTML portal page. The entire directory containing the specified file is served, preserving any folder structure (CSS, JS, images, sub-directories). The supplied file becomes the entry point (`index.html`). The form **must** POST to `/accept` to trigger client whitelisting.
+
+```bash
+# Built-in portal
+sudo ./GhostAP.sh -i wlan0 -s "FreeWifi" --security open --captive --internet -si eth0
+
+# Custom template
+sudo ./GhostAP.sh --captive --captive-template /path/to/portal/login.html --internet -si eth0
+
+# Custom port
+sudo ./GhostAP.sh --captive --captive-port 9090 --internet -si eth0
+```
+
+> [!NOTE]
+> Captive portal requires `python3`. Captured credentials are saved to `Output/captive_credentials-<timestamp>.txt`.
+
+> [!WARNING]
+> Using captive portal together with `--proxy` or `--spoof` may cause conflicts, as all three features manipulate HTTP traffic and/or DNS. Use only one at a time.
+
 ## Architecture
 
 GhostAP uses a modular architecture with separate modules for each feature:
@@ -379,6 +440,7 @@ GhostAP/
     ├── internet.sh      # NAT and internet sharing
     ├── proxy.sh         # Proxy routing (Interception/Redsocks)
     ├── capture.sh       # Packet capture with tshark
+    ├── captive.sh       # Captive portal server and iptables whitelisting
     └── services.sh      # Service lifecycle management
 ```
 
@@ -398,6 +460,7 @@ tail -f Logs/GhostAP.log
 - `Logs/dnsmasq.log` - DHCP/DNS service logs
 - `Logs/tshark.log` - Packet capture logs
 - `Logs/redsocks.log` - Proxy service logs (when applicable)
+- `Logs/captive.log` - Captive portal server logs (when applicable)
 
 ## Security Considerations
 
