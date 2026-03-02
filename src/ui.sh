@@ -116,6 +116,15 @@ Feature Options:
   --spoof-target IP             Default target IP for domains without explicit IP
   --block-doh                   Block DNS-over-HTTPS to enforce DNS spoofing
 
+Captive Portal Options:
+  --captive                     Enable captive portal (intercepts clients until they submit)
+  --captive-port PORT           Port for the captive portal server (default: 8880)
+  --captive-template FILE       Path to a custom HTML file to use as the portal page
+                                All files in the same directory are served automatically
+                                (CSS, JS, images, subdirectories — any structure)
+                                The supplied file becomes the portal entry point (index.html)
+                                Template must POST to /accept to whitelist the client
+
 VPN Options:
   --vpn [FILE]                  Enable VPN routing; optionally provide a config file
                                 (.ovpn for OpenVPN, .conf for WireGuard)
@@ -148,6 +157,16 @@ Examples:
 
   # Clone an existing access point
   sudo $0 -i wlan0 --clone "TargetSSID"
+
+  # Captive portal with built-in page and internet sharing
+  sudo $0 -i wlan0 -s "FreeWifi" --security open --captive --internet -si eth0
+
+  # Captive portal with custom template (single file)
+  sudo $0 -i wlan0 -s "FreeWifi" --captive --internet -si eth0 \
+      --captive-template /path/to/portal/index.html
+
+  # Captive portal on a custom port
+  sudo $0 -i wlan0 -s "FreeWifi" --captive --captive-port 9090 --internet -si eth0
 
   # VPN-routed access point (OpenVPN)
   sudo $0 -i wlan0 -s "VpnAP" --vpn client.ovpn --internet -si eth0

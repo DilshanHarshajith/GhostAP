@@ -93,6 +93,11 @@ PROXY_PASS="${DEFAULTS[PROXY_PASS]}"
 SPOOF_DOMAINS="${DEFAULTS[SPOOF_DOMAINS]}"
 SPOOF_TARGET_IP="${DEFAULTS[SPOOF_TARGET_IP]}"
 BLOCK_DOH="${DEFAULTS[BLOCK_DOH]}"
+
+# Captive Portal Options
+CAPTIVE_PORTAL="${DEFAULTS[CAPTIVE_PORTAL]}"
+CAPTIVE_PORT="${DEFAULTS[CAPTIVE_PORT]}"
+CAPTIVE_TEMPLATE="${DEFAULTS[CAPTIVE_TEMPLATE]}"
 EOF
 }
 
@@ -243,6 +248,28 @@ parse_arguments() {
                 DEFAULTS[BLOCK_DOH]=true
                 ARG[BLOCK_DOH]=1
                 shift
+                ;;
+            --captive)
+                DEFAULTS[CAPTIVE_PORTAL]=true
+                ARG[CAPTIVE_PORTAL]=1
+                shift
+                ;;
+            --captive-port)
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                DEFAULTS[CAPTIVE_PORT]="$2"
+                ARG[CAPTIVE_PORT]=1
+                DEFAULTS[CAPTIVE_PORTAL]=true
+                ARG[CAPTIVE_PORTAL]=1
+                shift 2
+                ;;
+            --captive-template)
+                [[ -z "${2:-}" ]] && error "Missing argument for $1"
+                [[ ! -f "$2" ]] && error "Captive portal template not found: $2"
+                DEFAULTS[CAPTIVE_TEMPLATE]="$2"
+                DEFAULTS[CAPTIVE_PORTAL]=true
+                ARG[CAPTIVE_TEMPLATE]=1
+                ARG[CAPTIVE_PORTAL]=1
+                shift 2
                 ;;
             --clone)
                 DEFAULTS[CLONE]=true

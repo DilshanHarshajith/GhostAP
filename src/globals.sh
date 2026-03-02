@@ -91,6 +91,10 @@ declare -A DEFAULTS=(
     [SPOOF_TARGET_IP]=""
     [BLOCK_DOH]=false
     [MAC]=""
+
+    [CAPTIVE_PORTAL]=false
+    [CAPTIVE_PORT]="8880"
+    [CAPTIVE_TEMPLATE]=""
 )
 
 declare -A ARG
