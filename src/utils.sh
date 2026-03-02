@@ -162,8 +162,29 @@ validate_ip() {
 validate_channel() {
     local channel="$1"
     [[ "${channel}" =~ ^[0-9]+$ ]] || return 1
-    ((channel >= 1 && channel <= 14)) || return 1
-    return 0
+    # 2.4GHz: 1-14  |  5GHz: 36-64 (UNII-1/2), 100-144 (UNII-2e), 149-165 (UNII-3)
+    if ((channel >= 1 && channel <= 14)); then
+        return 0
+    elif ((channel >= 36 && channel <= 64 && (channel % 4 == 0))) ||          ((channel >= 100 && channel <= 144 && (channel % 4 == 0))) ||          ((channel >= 149 && channel <= 165 && (channel % 4 == 1 || channel == 165))); then
+        return 0
+    fi
+    return 1
+}
+
+# Returns the band for a given channel: "2.4" or "5"
+get_channel_band() {
+    local channel="$1"
+    if ((channel >= 36)); then
+        echo "5"
+    else
+        echo "2.4"
+    fi
+}
+
+# Returns 0 (true) if channel requires DFS / CAC before broadcasting
+is_dfs_channel() {
+    local channel="$1"
+    ((channel >= 52 && channel <= 144))
 }
 
 validate_port() {

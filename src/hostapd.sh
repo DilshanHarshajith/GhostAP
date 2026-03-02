@@ -24,7 +24,7 @@ configure_hostapd() {
                     if validate_channel "${channel}"; then
                         break
                     else
-                        echo "Invalid channel. Please enter 1-14"
+                        echo "Invalid channel. 2.4GHz: 1-14 | 5GHz: 36/40/44/48/52/56/60/64/100-144/149-165"
                     fi
                 done
             fi
@@ -68,7 +68,7 @@ configure_hostapd() {
     fi
     
     if ! validate_channel "${DEFAULTS[CHANNEL]}"; then
-        error "Invalid channel: ${DEFAULTS[CHANNEL]} (must be 1-14)"
+        error "Invalid channel: ${DEFAULTS[CHANNEL]}. 2.4GHz: 1-14 | 5GHz: 36/40/44/48/52/56/60/64/100-144/149-165"
     fi
 
     if [[ ! "${DEFAULTS[SECURITY]}" =~ ^(open|wpa2|wpa3)$ ]]; then
@@ -99,16 +99,33 @@ configure_hostapd() {
         DEFAULTS[PASSWORD]="${password}"
     fi
 
+    local band
+    band=$(get_channel_band "${channel}")
+
+    # Build band-specific hostapd directives
+    local band_conf
+    if [[ "${band}" == "5" ]]; then
+        band_conf="hw_mode=a
+ieee80211n=1
+ieee80211ac=1
+wmm_enabled=1
+ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40]
+vht_capab=[SHORT-GI-80][SU-BEAMFORMEE]
+vht_oper_chwidth=1"
+    else
+        band_conf="hw_mode=g
+ieee80211n=1
+wmm_enabled=1
+ht_capab=[HT40][SHORT-GI-20][DSSS_CCK-40]"
+    fi
+
     cat > "${config_file}" << EOF
 interface=${DEFAULTS[INTERFACE]}
 driver=nl80211
 ssid=${ssid}
 channel=${channel}
 $( [[ -n "${DEFAULTS[MAC]}" ]] && echo "bssid=${DEFAULTS[MAC]}" )
-hw_mode=g
-ieee80211n=1
-wmm_enabled=1
-ht_capab=[HT40][SHORT-GI-20][DSSS_CCK-40]
+${band_conf}
 macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
@@ -138,5 +155,12 @@ EOF
         "open")
             ;;
     esac
-    log "Hostapd configured: SSID='${ssid}', Channel=${channel}, Security=${security}"
+    log "Hostapd configured: SSID='${ssid}', Channel=${channel} (${band}GHz), Security=${security}"
+
+    # Warn about DFS channels — they require a CAC period before the AP broadcasts
+    if is_dfs_channel "${channel}"; then
+        warn "Channel ${channel} is a DFS channel. hostapd will perform a radar"
+        warn "Channel Availability Check (CAC) of up to 60 seconds before the AP"
+        warn "becomes visible to clients. This is normal — please wait."
+    fi
 }

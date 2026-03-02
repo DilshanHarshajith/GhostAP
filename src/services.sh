@@ -45,15 +45,44 @@ start_services() {
     if ! hostapd -B -f "${hostapd_log}" "${HOSTAPD_CONF}"; then
         error "Failed to start hostapd. Check ${hostapd_log} for details."
     fi
-    
-    sleep 3
+
+    # For DFS channels hostapd performs a CAC (Channel Availability Check) of up
+    # to 60 seconds before the AP starts beaconing. Poll the log for the AP-ENABLED
+    # event rather than using a fixed sleep so we react as soon as CAC completes.
     local hostapd_pid
     hostapd_pid=$(pgrep -f "hostapd.*${HOSTAPD_CONF}" | head -1)
-    if [[ -n "${hostapd_pid}" ]]; then
-        PIDS+=("${hostapd_pid}")
-        log "Hostapd started with PID: ${hostapd_pid}"
-    else
+    if [[ -z "${hostapd_pid}" ]]; then
         error "Hostapd failed to start properly"
+    fi
+    PIDS+=("${hostapd_pid}")
+
+    if is_dfs_channel "${DEFAULTS[CHANNEL]}"; then
+        log "DFS channel detected — waiting for CAC to complete (up to 70s)..."
+        local elapsed=0
+        local cac_done=false
+        while ((elapsed < 70)); do
+            if grep -q "AP-ENABLED\|interface.*enabled" "${hostapd_log}" 2>/dev/null; then
+                cac_done=true
+                break
+            fi
+            # Bail early if hostapd died during CAC
+            if ! kill -0 "${hostapd_pid}" 2>/dev/null; then
+                error "Hostapd died during CAC. Check ${hostapd_log} for details."
+            fi
+            sleep 2
+            ((elapsed += 2))
+        done
+        if [[ "${cac_done}" == true ]]; then
+            log "CAC complete. Hostapd started with PID: ${hostapd_pid}"
+        else
+            warn "CAC timed out after ${elapsed}s — AP may still be starting. Check ${hostapd_log}"
+        fi
+    else
+        sleep 3
+        if ! kill -0 "${hostapd_pid}" 2>/dev/null; then
+            error "Hostapd failed to start properly"
+        fi
+        log "Hostapd started with PID: ${hostapd_pid}"
     fi
     
     log "Starting dnsmasq..."
