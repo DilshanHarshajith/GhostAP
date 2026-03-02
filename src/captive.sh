@@ -169,6 +169,14 @@ class PortalHandler(BaseHTTPRequestHandler):
         elif 'multipart/form-data' in content_type:
             # Lightweight multipart parser — covers text fields only
             fields = _parse_multipart(content_type, raw_body)
+        elif 'application/json' in content_type:
+            # Parse JSON body — wrap scalar values in lists to match parse_qs shape
+            import json as _json
+            try:
+                obj = _json.loads(raw_body) if raw_body else {}
+                fields = {k: [str(v)] for k, v in obj.items()} if isinstance(obj, dict) else {}
+            except ValueError:
+                fields = {}
         else:
             # Fallback: try URL-decode anyway
             fields = parse_qs(raw_body, keep_blank_values=True)
@@ -362,9 +370,10 @@ _captive_validate_template() {
         warn "Captive portal template '${tmpl}' does not have an .html/.htm extension — using it anyway."
     fi
 
-    if ! grep -qi 'action.*["\x27]/accept' "${tmpl}" 2>/dev/null; then
-        warn "Captive portal template may be missing <form action=\"/accept\" method=\"POST\">."
-        warn "Without this the connect button will not whitelist the client."
+    # Accept both HTML form action="/accept" and JS fetch('/accept') patterns
+    if ! grep -qiE '(action\s*=\s*["\x27]/accept|fetch\s*\(\s*["\x27]/accept)' "${tmpl}" 2>/dev/null; then
+        warn "Captive portal template may be missing <form action=\"/accept\" method=\"POST\"> or fetch('/accept')."
+        warn "Without posting to /accept the connect button will not whitelist the client."
     fi
 
     return 0
