@@ -55,32 +55,32 @@ sudo apt install mitmproxy
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/DilshanHarshajith/GhostAP.git
-cd GhostAP
-chmod +x GhostAP.sh
-```
+   ```bash
+   git clone https://github.com/DilshanHarshajith/GhostAP.git
+   cd GhostAP
+   chmod +x GhostAP.sh
+   ```
 
-3. Run with root privileges:
+2. Run with root privileges:
 
-```bash
-sudo ./GhostAP.sh
-```
+   ```bash
+   sudo ./GhostAP.sh
+   ```
 
 ### Installation as Debian Package (Recommended)
 
 1. Download the latest `.deb` package from the [Releases](https://github.com/DilshanHarshajith/GhostAP/releases) page.
 2. Install using `apt`:
 
-```bash
-sudo apt install ./ghostap_*.deb
-```
+   ```bash
+   sudo apt install ./ghostap_*.deb
+   ```
 
 3. Run from anywhere:
 
-```bash
-sudo ghostap
-```
+   ```bash
+   sudo ghostap
+   ```
 
 ## Usage
 
@@ -307,6 +307,8 @@ sudo ./GhostAP.sh --spoof "example.com" --block-doh
 > [!NOTE]
 > When DNS spoofing is enabled without `--spoof-target`, domains without explicit IPs default to the AP's IP address (192.168.X.1).
 
+<!-- -->
+
 > [!IMPORTANT]
 > Use `--block-doh` to block DNS-over-HTTPS traffic and force clients to use your DNS server. This prevents clients from bypassing DNS spoofing by using encrypted DNS services like Google DoH or Cloudflare DoH.
 
@@ -419,6 +421,8 @@ sudo ./GhostAP.sh --captive --captive-port 9090 --internet -si eth0
 > [!NOTE]
 > Captive portal requires `python3`. Captured credentials are saved to `Output/captive_credentials-<timestamp>.txt`.
 
+<!-- -->
+
 > [!WARNING]
 > Using captive portal together with `--proxy` or `--spoof` may cause conflicts, as all three features manipulate HTTP traffic and/or DNS. Use only one at a time.
 
@@ -426,7 +430,7 @@ sudo ./GhostAP.sh --captive --captive-port 9090 --internet -si eth0
 
 GhostAP uses a modular architecture with separate modules for each feature:
 
-```
+```text
 GhostAP/
 ├── GhostAP.sh           # Main entry point
 └── src/
@@ -444,15 +448,13 @@ GhostAP/
     └── services.sh      # Service lifecycle management
 ```
 
-````
-
 ## Monitoring and Logs
 
 ### Real-time Log Monitoring
 
 ```bash
 tail -f Logs/GhostAP.log
-````
+```
 
 ### Service-specific Logs
 
