@@ -114,6 +114,8 @@ parse_arguments() {
                 CONFIG_FILE="$2"
                 if [[ "${CONFIG_FILE}" != *.* ]]; then
                     CONFIG_FILE="${SETUP_DIR}/${CONFIG_FILE}.conf"
+                elif [[ "${CONFIG_FILE}" != ^/*.* ]]; then
+                    CONFIG_FILE="${WORKING_DIR}/${CONFIG_FILE}"
                 fi
                 [[ -f "${CONFIG_FILE}" ]] || error "Configuration file not found: ${CONFIG_FILE}"
                 shift 2
