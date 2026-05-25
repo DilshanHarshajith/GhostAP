@@ -1,6 +1,12 @@
 #!/bin/bash
 
 configure_hostapd() {
+    # In Ethernet AP mode hostapd is not used — the downstream router provides the radio.
+    if [[ "${DEFAULTS[ETHERNET_MODE]}" == true ]]; then
+        log "Ethernet AP mode: skipping hostapd (radio provided by downstream router)."
+        return 0
+    fi
+
     log "Configuring hostapd..."
     
     local config_file="${HOSTAPD_CONF}"

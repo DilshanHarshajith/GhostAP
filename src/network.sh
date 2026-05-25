@@ -1,5 +1,24 @@
 #!/bin/bash
 
+get_ethernet_interfaces() {
+    # Return physical ethernet interfaces (exclude loopback, virtual, wireless, and bridges)
+    local interfaces=()
+    while IFS= read -r iface; do
+        # Skip loopback
+        [[ "${iface}" == "lo" ]] && continue
+        # Skip wireless interfaces
+        [[ -e "/sys/class/net/${iface}/wireless" ]] && continue
+        # Skip virtual/tunnel interfaces
+        [[ "${iface}" =~ ^(tun|tap|veth|virbr|docker|br-|vlan|bond|dummy) ]] && continue
+        # Must be a real network device (has a device symlink)
+        [[ -e "/sys/class/net/${iface}/device" ]] || continue
+        interfaces+=("${iface}")
+    done < <(ip -o link show | awk -F': ' '{print $2}' | sed 's/@.*//')
+
+    [[ ${#interfaces[@]} -gt 0 ]] || error "No ethernet interfaces found"
+    printf '%s\n' "${interfaces[@]}"
+}
+
 get_wireless_interfaces() {
     local interfaces=()
     

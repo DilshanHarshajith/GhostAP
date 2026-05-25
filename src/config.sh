@@ -98,6 +98,9 @@ BLOCK_DOH="${DEFAULTS[BLOCK_DOH]}"
 CAPTIVE_PORTAL="${DEFAULTS[CAPTIVE_PORTAL]}"
 CAPTIVE_PORT="${DEFAULTS[CAPTIVE_PORT]}"
 CAPTIVE_TEMPLATE="${DEFAULTS[CAPTIVE_TEMPLATE]}"
+
+# Ethernet AP mode
+ETHERNET_MODE="${DEFAULTS[ETHERNET_MODE]}"
 EOF
 }
 
@@ -107,6 +110,11 @@ parse_arguments() {
         case "${key}" in
             --int|--interactive)
                 INTERACTIVE_MODE=true
+                shift
+                ;;
+            --eth-ap|--ethernet-ap)
+                DEFAULTS[ETHERNET_MODE]=true
+                ARG[ETHERNET_MODE]=1
                 shift
                 ;;
             --config)

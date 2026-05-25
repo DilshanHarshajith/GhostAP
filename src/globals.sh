@@ -95,6 +95,10 @@ declare -A DEFAULTS=(
     [CAPTIVE_PORTAL]=false
     [CAPTIVE_PORT]="8880"
     [CAPTIVE_TEMPLATE]=""
+
+    # Ethernet AP mode — use an ethernet interface instead of hostapd/WiFi
+    # The actual radio is connected downstream on that port.
+    [ETHERNET_MODE]=false
 )
 
 declare -A ARG

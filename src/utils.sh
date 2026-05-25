@@ -50,7 +50,9 @@ cleanup() {
 
     if [[ -n "${DEFAULTS[INTERFACE]}" ]]; then
         ip link set "${DEFAULTS[INTERFACE]}" down
-        iw dev "${DEFAULTS[INTERFACE]}" set type managed
+        if [[ "${DEFAULTS[ETHERNET_MODE]}" != true ]]; then
+            iw dev "${DEFAULTS[INTERFACE]}" set type managed
+        fi
         ip link set "${DEFAULTS[INTERFACE]}" up
         nmcli device set "${DEFAULTS[INTERFACE]}" managed yes 2>/dev/null || warn "Failed to disable NetworkManager for ${DEFAULTS[INTERFACE]}"
     fi

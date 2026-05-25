@@ -29,61 +29,64 @@ start_services() {
     fi
     
     log "Interface ${DEFAULTS[INTERFACE]} configured with IP 192.168.${DEFAULTS[SUBNET]}.1"
-    pkill -f "hostapd.*${HOSTAPD_CONF}" 2>/dev/null || true
-    sleep 1
-    for i in {1..5}; do
-        if ! pgrep -f "hostapd.*${HOSTAPD_CONF}" >/dev/null; then
-            break
-        fi
-        warn "Waiting for previous hostapd to exit..."
+
+    # ── hostapd ────────────────────────────────────────────────────────────────
+    if [[ "${DEFAULTS[ETHERNET_MODE]}" == true ]]; then
+        log "Ethernet AP mode: skipping hostapd startup (downstream router provides the radio)."
+    else
+        pkill -f "hostapd.*${HOSTAPD_CONF}" 2>/dev/null || true
         sleep 1
-    done
-
-    log "Starting hostapd..."
-    local hostapd_log="${HOSTAPD_LOG}"
-    
-    if ! hostapd -B -f "${hostapd_log}" "${HOSTAPD_CONF}"; then
-        error "Failed to start hostapd. Check ${hostapd_log} for details."
-    fi
-
-    # For DFS channels hostapd performs a CAC (Channel Availability Check) of up
-    # to 60 seconds before the AP starts beaconing. Poll the log for the AP-ENABLED
-    # event rather than using a fixed sleep so we react as soon as CAC completes.
-    local hostapd_pid
-    hostapd_pid=$(pgrep -f "hostapd.*${HOSTAPD_CONF}" | head -1)
-    if [[ -z "${hostapd_pid}" ]]; then
-        error "Hostapd failed to start properly"
-    fi
-    PIDS+=("${hostapd_pid}")
-
-    if is_dfs_channel "${DEFAULTS[CHANNEL]}"; then
-        log "DFS channel detected — waiting for CAC to complete (up to 70s)..."
-        local elapsed=0
-        local cac_done=false
-        while ((elapsed < 70)); do
-            if grep -q "AP-ENABLED\|interface.*enabled" "${hostapd_log}" 2>/dev/null; then
-                cac_done=true
+        for i in {1..5}; do
+            if ! pgrep -f "hostapd.*${HOSTAPD_CONF}" >/dev/null; then
                 break
             fi
-            # Bail early if hostapd died during CAC
-            if ! kill -0 "${hostapd_pid}" 2>/dev/null; then
-                error "Hostapd died during CAC. Check ${hostapd_log} for details."
-            fi
-            sleep 2
-            ((elapsed += 2))
+            warn "Waiting for previous hostapd to exit..."
+            sleep 1
         done
-        if [[ "${cac_done}" == true ]]; then
-            log "CAC complete. Hostapd started with PID: ${hostapd_pid}"
-        else
-            warn "CAC timed out after ${elapsed}s — AP may still be starting. Check ${hostapd_log}"
+
+        log "Starting hostapd..."
+        local hostapd_log="${HOSTAPD_LOG}"
+        
+        if ! hostapd -B -f "${hostapd_log}" "${HOSTAPD_CONF}"; then
+            error "Failed to start hostapd. Check ${hostapd_log} for details."
         fi
-    else
-        sleep 3
-        if ! kill -0 "${hostapd_pid}" 2>/dev/null; then
+
+        local hostapd_pid
+        hostapd_pid=$(pgrep -f "hostapd.*${HOSTAPD_CONF}" | head -1)
+        if [[ -z "${hostapd_pid}" ]]; then
             error "Hostapd failed to start properly"
         fi
-        log "Hostapd started with PID: ${hostapd_pid}"
+        PIDS+=("${hostapd_pid}")
+
+        if is_dfs_channel "${DEFAULTS[CHANNEL]}"; then
+            log "DFS channel detected — waiting for CAC to complete (up to 70s)..."
+            local elapsed=0
+            local cac_done=false
+            while ((elapsed < 70)); do
+                if grep -q "AP-ENABLED\|interface.*enabled" "${hostapd_log}" 2>/dev/null; then
+                    cac_done=true
+                    break
+                fi
+                if ! kill -0 "${hostapd_pid}" 2>/dev/null; then
+                    error "Hostapd died during CAC. Check ${hostapd_log} for details."
+                fi
+                sleep 2
+                ((elapsed += 2))
+            done
+            if [[ "${cac_done}" == true ]]; then
+                log "CAC complete. Hostapd started with PID: ${hostapd_pid}"
+            else
+                warn "CAC timed out after ${elapsed}s — AP may still be starting. Check ${hostapd_log}"
+            fi
+        else
+            sleep 3
+            if ! kill -0 "${hostapd_pid}" 2>/dev/null; then
+                error "Hostapd failed to start properly"
+            fi
+            log "Hostapd started with PID: ${hostapd_pid}"
+        fi
     fi
+    # ── end hostapd ────────────────────────────────────────────────────────────
     
     log "Starting dnsmasq..."
     local dnsmasq_log="${DNSMASQ_LOG}"
@@ -108,7 +111,6 @@ start_services() {
             warn "Failed to add iptables rule: ${rule}"
         else
             log "Added iptables rule: ${rule}"
-            # Store the reverse command (delete) for cleanup
             local delete_rule="${rule/ -I / -D }"
             delete_rule="${delete_rule/ -A / -D }"
             APPLIED_RULES+=("${delete_rule}")

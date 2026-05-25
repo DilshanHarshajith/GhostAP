@@ -1,6 +1,23 @@
 #!/bin/bash
 
 configure_interface() {
+    # In interactive mode, ask whether to use ethernet AP mode if not already decided
+    if [[ "${INTERACTIVE_MODE}" == true && -z "${ARG[ETHERNET_MODE]}" ]]; then
+        read -r -p "Use ethernet AP mode? (y/N): " eth_mode_input
+        if [[ "${eth_mode_input}" =~ ^[Yy]$ ]]; then
+            DEFAULTS[ETHERNET_MODE]=true
+            log "Ethernet AP mode enabled."
+        fi
+    fi
+
+    if [[ "${DEFAULTS[ETHERNET_MODE]}" == true ]]; then
+        _configure_ethernet_interface
+    else
+        _configure_wireless_interface
+    fi
+}
+
+_configure_wireless_interface() {
     log "Configuring wireless interface..."
 
     local interfaces
@@ -17,7 +34,6 @@ configure_interface() {
         if [[ -n "${ARG[INTERFACE]}" ]]; then
             log "Selected interface: ${DEFAULTS[INTERFACE]}"
         else
-            # Try to auto-detect if not specified
             local auto_interface
             auto_interface=$(get_wireless_interfaces | head -n 1)
             if [[ -n "${auto_interface}" ]]; then
@@ -38,7 +54,55 @@ configure_interface() {
     fi
 }
 
+_configure_ethernet_interface() {
+    log "Configuring ethernet interface (Ethernet AP mode)..."
+    log "In this mode the downstream router provides the WiFi radio."
+    log "GhostAP manages DHCP, NAT, and all features on the ethernet port facing that router."
+
+    local interfaces
+    mapfile -t interfaces < <(get_ethernet_interfaces)
+
+    if [[ ${INTERACTIVE_MODE} == true ]]; then
+        if [[ -z "${ARG[INTERFACE]}" ]]; then
+            DEFAULTS[INTERFACE]=$(select_from_list "Select ethernet interface facing the downstream router:" "${interfaces[@]}")
+            log "Selected interface: ${DEFAULTS[INTERFACE]}"
+        else
+            log "Using specified interface: ${DEFAULTS[INTERFACE]}"
+        fi
+    else
+        if [[ -n "${ARG[INTERFACE]}" ]]; then
+            log "Using specified ethernet interface: ${DEFAULTS[INTERFACE]}"
+        else
+            local auto_interface
+            auto_interface=$(get_ethernet_interfaces | head -n 1)
+            if [[ -n "${auto_interface}" ]]; then
+                DEFAULTS[INTERFACE]="${auto_interface}"
+                warn "No ethernet interface specified. Automatically selected: ${DEFAULTS[INTERFACE]}"
+            else
+                error "No ethernet interface found. Use -i <interface>"
+            fi
+        fi
+    fi
+
+    if ! ip link show "${DEFAULTS[INTERFACE]}" >/dev/null 2>&1; then
+        error "Interface ${DEFAULTS[INTERFACE]} not found"
+    fi
+
+    # Sanity check: warn if user accidentally picked a wireless iface in eth mode
+    if [[ -e "/sys/class/net/${DEFAULTS[INTERFACE]}/wireless" ]]; then
+        warn "Interface ${DEFAULTS[INTERFACE]} appears to be wireless, but --eth-ap mode was selected."
+        warn "This is unusual. Continue only if you know what you are doing."
+    fi
+
+    log "Ethernet AP interface set to: ${DEFAULTS[INTERFACE]}"
+    log "NOTE: Configure your downstream router in bridge/AP mode (disable its DHCP"
+    log "and NAT) so that GhostAP's DHCP and features reach the WiFi clients directly."
+    log "If your router only supports router mode, clients will be double-NATted and DNS"
+    log "spoofing / proxy features will only affect the router-to-GhostAP leg."
+}
+
 configure_mac_in_interactive() {
+    [[ "${DEFAULTS[ETHERNET_MODE]}" == false ]] || return 0
     if [[ ${INTERACTIVE_MODE} == true ]]; then
         if [[ -z "${ARG[MAC]}" && "${DEFAULTS[CLONE]}" != true ]]; then
             read -r -p "Custom MAC address for AP (leave blank for default): " user_mac
@@ -56,6 +120,8 @@ configure_mac_in_interactive() {
 
 
 configure_clone(){
+    [[ "${DEFAULTS[ETHERNET_MODE]}" == false ]] || return 0
+
     if [[ ${INTERACTIVE_MODE} == true ]]; then
         if [[ -z "${ARG[CLONE]}" ]]; then
             read -r -p "Enable interface cloning? (y/N): " enable_clone
@@ -91,13 +157,13 @@ configure_clone(){
         return 0
     }
 
-    IFS="|" read -r ssid channel mac < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${DEFAULTS[INTERFACE]}")
+    IFS="|" read -r ssid channel mac ap_security < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${DEFAULTS[INTERFACE]}")
 
     if [[ -z "${ssid}" || -z "${channel}" ]]; then
         error "Clone target '${DEFAULTS[CLONE_SSID]}' was not found in the scan results on ${DEFAULTS[INTERFACE]}." \
               "Ensure the target AP is in range and try again."
     fi
-    
+
     if [[ -z "${ARG[SSID]}" ]]; then
         DEFAULTS[SSID]="$ssid"
     else
@@ -109,7 +175,7 @@ configure_clone(){
     else
         log "Preserving specified Channel: ${DEFAULTS[CHANNEL]} (ignoring clone Channel: $channel)"
     fi
-    
+
     if [[ -z "${ARG[MAC]}" ]]; then
         DEFAULTS[MAC]="$mac"
     else

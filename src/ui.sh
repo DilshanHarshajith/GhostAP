@@ -95,9 +95,14 @@ Basic Options:
   --help, -h                    Show this help message
 
 Interface Options:
-  -i, --interface IFACE         Wireless interface to use
+  -i, --interface IFACE         Interface to use (wireless, or ethernet with --eth-ap)
   -si, --source-interface IFACE Source interface for internet sharing
-  -m, --mac MAC                 MAC address to use (BSSID)
+  -m, --mac MAC                 MAC address to use (BSSID, wireless mode only)
+  --eth-ap, --ethernet-ap       Ethernet AP mode: use an ethernet port facing a downstream
+                                router as the AP interface. hostapd is
+                                skipped; the downstream router provides the WiFi radio.
+                                All other features (DHCP, proxy, DNS spoofing, etc.) apply
+                                on the ethernet port. See examples below.
 
 Network Options:
   -s, --ssid SSID               Network name (SSID)
@@ -183,6 +188,27 @@ Examples:
   # Save and reload configuration
   sudo $0 -i wlan0 -s "MyAP" --security wpa2 --password "secret" --save myconfig
   sudo $0 --config myconfig
+
+  # ── Ethernet AP mode (a downstream router as the radio) ─────────
+  # Topology: Internet → eth0 (this machine) → eth1 → downstream router WAN → WiFi clients
+  # Tip: put your downstream router in bridge/AP mode (disable its DHCP+NAT) so GhostAP's
+  # DHCP and features reach the WiFi clients directly without double-NAT.
+
+  # Basic ethernet AP — internet shared from eth0, GhostAP manages DHCP on eth1
+  sudo $0 --eth-ap -i eth1 --internet -si eth0
+
+  # Ethernet AP with DNS spoofing
+  sudo $0 --eth-ap -i eth1 --internet -si eth0 \
+      --spoof "example.com=192.168.10.1" --block-doh
+
+  # Ethernet AP with transparent proxy interception
+  sudo $0 --eth-ap -i eth1 --internet -si eth0 --local-proxy
+
+  # Ethernet AP with custom IP range
+  sudo $0 --eth-ap -i eth1 --internet -si eth0 --subnet 20
+
+  # Interactive ethernet AP setup
+  sudo $0 --eth-ap --int
 
 For more information, visit: https://github.com/DilshanHarshajith/GhostAP
 EOF
