@@ -17,6 +17,10 @@ select_from_list() {
         error "No options provided to select from"
     fi
 
+    if [[ ${#options[@]} -eq 1 && -z "${default_choice}" ]]; then
+        default_choice="1"
+    fi
+
     echo "${prompt}" >&2
     for option_index in "${!options[@]}"; do
         echo "[$((option_index+1))] ${options[option_index]}" >&2
