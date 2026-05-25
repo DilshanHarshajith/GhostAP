@@ -5,6 +5,7 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 ## Features
 
 - **Wireless Access Point Creation**: Set up secure (WPA2/WPA3) or open WiFi networks
+- **Ethernet AP Mode**: Route traffic through downstream hardware without hostapd
 - **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration
 - **Internet Sharing**: Share internet connection from another interface via NAT
 - **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
@@ -90,6 +91,9 @@ sudo apt install mitmproxy
 sudo ./GhostAP.sh --interactive
 ```
 
+> [!NOTE]
+> Interactive mode automatically selects the default option when only one choice is available (e.g., when you only have one wireless interface).
+
 ### Quick Start Examples
 
 #### Basic Open Access Point
@@ -122,6 +126,14 @@ sudo ./GhostAP.sh -i wlan0 -s "ProxyAP" --proxy --proxy-host 127.0.0.1 --proxy-p
 
 ```bash
 sudo ./GhostAP.sh -i wlan0 --clone "Target_SSID"
+```
+
+#### Ethernet AP Mode (Downstream Router as Radio)
+
+```bash
+# Tip: put your downstream router in bridge/AP mode (disable its DHCP+NAT)
+# Basic ethernet AP — internet shared from eth0, GhostAP manages DHCP on eth1
+sudo ./GhostAP.sh --eth-ap -i eth1 --internet -si eth0
 ```
 
 #### Local Transparent Interception
@@ -169,8 +181,9 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 
 | Option                          | Description                               |
 | ------------------------------- | ----------------------------------------- |
-| `-i, --interface IFACE`         | Wireless interface to use                 |
+| `-i, --interface IFACE`         | Interface to use (wireless, or ethernet with `--eth-ap`) |
 | `-si, --source-interface IFACE` | Source interface for internet sharing     |
+| `--eth-ap, --ethernet-ap`       | Enable Ethernet AP mode (skip hostapd)    |
 | `--vpn [CONFIG]`                | Enable VPN routing (optional .ovpn/.conf) |
 | `--vpn-interface IFACE`         | Use an existing VPN interface             |
 | `--vpn-creds USER:PASS`         | OpenVPN credentials (non-interactive)     |
@@ -186,7 +199,7 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 | `--password PASSWORD`   | WiFi password (for WPA2/WPA3)  |
 | `--subnet OCTET`        | Subnet third octet (0-255)     |
 | `--dns IP`              | DNS server IP address          |
-| `-m, --mac MAC`         | MAC address to use             |
+| `-m, --mac MAC`         | MAC address to use (wireless mode only) |
 
 ### Feature Options
 
@@ -231,6 +244,8 @@ sudo ./GhostAP.sh --save myconfig -i wlan0 -s "MyAP" --security wpa2 --password 
 
 ```bash
 sudo ./GhostAP.sh --config /path/to/myconfig.conf
+# Relative paths are also supported:
+sudo ./GhostAP.sh --config myconfig.conf
 ```
 
 > [!NOTE]
@@ -241,6 +256,7 @@ sudo ./GhostAP.sh --config /path/to/myconfig.conf
 ```ini
 # Network Configuration
 INTERFACE="wlan0"
+ETHERNET_MODE="false"
 SSID="MyAccessPoint"
 CHANNEL="6"
 SUBNET="10"
