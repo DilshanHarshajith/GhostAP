@@ -125,7 +125,7 @@ configure_dns_spoof() {
         default_target="192.168.${DEFAULTS[SUBNET]}.1"
     fi
 
-    if [[ -n "${ARG[SPOOF_DOMAINS]}" ]]; then
+    if [[ -n "${ARG[SPOOF_DOMAINS]}" || -n "${DEFAULTS[SPOOF_DOMAINS]}" ]]; then
         IFS='|' read -ra entries <<< "${DEFAULTS[SPOOF_DOMAINS]}"
         for spoof_entry in "${entries[@]}"; do
             # Check if entry has explicit IP (contains =)
@@ -143,20 +143,24 @@ configure_dns_spoof() {
             fi
         done
     else
+        local collected_domains=""
         while read -r -p "Enter domains to spoof (format: domain.com or domain.com=1.2.3.4), empty line to finish: " spoof_entry && [[ -n "${spoof_entry}" ]]; do
             if [[ "${spoof_entry}" == *"="* ]]; then
                 if [[ "${spoof_entry}" =~ ^[^=]+=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                     echo "address=/${spoof_entry/=//}" >> "${DNSMASQ_CONF}"
                     log "Added DNS spoof: ${spoof_entry}"
+                    collected_domains+="${spoof_entry}|"
                 else
                     echo "Invalid format. Use: domain.com=192.168.1.1"
                 fi
             else
-                 # domain only
-                 echo "address=/${spoof_entry}/${default_target}" >> "${DNSMASQ_CONF}"
-                 log "Added DNS spoof: ${spoof_entry} -> ${default_target}"
+                echo "address=/${spoof_entry}/${default_target}" >> "${DNSMASQ_CONF}"
+                log "Added DNS spoof: ${spoof_entry} -> ${default_target}"
+                collected_domains+="${spoof_entry}|"
             fi
         done
+        # Save back so config serialization picks them up
+        DEFAULTS[SPOOF_DOMAINS]="${collected_domains%|}"
     fi
 
     log "DNS Spoofing Enabled. (configure manually in dnsmasq.conf if needed)"
