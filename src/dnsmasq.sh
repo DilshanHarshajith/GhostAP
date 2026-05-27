@@ -73,6 +73,7 @@ configure_dhcp() {
     cat > "${config_file}" << EOF
 interface=${DEFAULTS[INTERFACE]}
 bind-interfaces
+except-interface=lo
 dhcp-range=192.168.${DEFAULTS[SUBNET]}.10,192.168.${DEFAULTS[SUBNET]}.250,255.255.255.0,12h
 dhcp-option=6,192.168.${DEFAULTS[SUBNET]}.1
 dhcp-option=3,192.168.${DEFAULTS[SUBNET]}.1
