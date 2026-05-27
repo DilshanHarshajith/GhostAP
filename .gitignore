@@ -1,2 +1,5 @@
 *.pcap
 *.pcapng
+Config
+Logs
+Setups
