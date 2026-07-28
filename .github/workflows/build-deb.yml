@@ -136,7 +136,7 @@ jobs:
             printf '  configure|abort-upgrade|abort-remove|abort-deconfigure)\n'
             printf '    mkdir -p /var/lib/ghostap/{Config,Logs,Output,Temp}\n'
             printf '    chmod 750 /var/lib/ghostap\n'
-            printf '    printf '"'"'#!/bin/bash\nif [ "$EUID" -ne 0 ]; then exec sudo "$0" "$@"; fi\ncd /var/lib/ghostap\nexec bash /usr/share/ghostap/GhostAP.sh "$@"\n'"'"' > /usr/bin/ghostap\n'
+            printf '    printf '"'"'#!/bin/bash\nif [ "$EUID" -ne 0 ]; then exec sudo "$0" "$@"; fi\nexec bash /usr/share/ghostap/GhostAP.sh "$@"\n'"'"' > /usr/bin/ghostap\n'
             printf '    chmod 755 /usr/bin/ghostap\n'
             printf '    echo "GhostAP installed. Run: sudo ghostap --help"\n'
             printf '    ;;\n'
