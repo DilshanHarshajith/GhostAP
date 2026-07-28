@@ -5,7 +5,7 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 ## Features
 
 - **Wireless Access Point Creation**: Set up secure (WPA2/WPA3) or open WiFi networks
-- **Ethernet AP Mode**: Route traffic through downstream hardware without hostapd
+- **Ethernet AP Mode**: Route traffic through downstream hardware without hostapd — works with a downstream router/AP, or a single PC plugged in directly via a straight ethernet cable
 - **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration
 - **Internet Sharing**: Share internet connection from another interface via NAT
 - **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
@@ -128,12 +128,24 @@ sudo ./GhostAP.sh -i wlan0 -s "ProxyAP" --proxy --proxy-host 127.0.0.1 --proxy-p
 sudo ./GhostAP.sh -i wlan0 --clone "Target_SSID"
 ```
 
-#### Ethernet AP Mode (Downstream Router as Radio)
+#### Ethernet AP Mode (Downstream Router as Radio, or a Directly Connected PC)
+
+`--eth-ap` skips hostapd and manages DHCP/NAT/features directly on an ethernet
+port instead of a WiFi radio. The interface can face either a downstream
+router (its WiFi radio serves the clients) or a single PC/laptop plugged in
+directly with a straight ethernet cable — no switch or router needed in
+between. In both cases GhostAP is the DHCP server and gateway for whatever is
+on the other end of that cable, so the same DNS spoofing, proxy, capture, and
+VPN-routing features apply.
 
 ```bash
-# Tip: put your downstream router in bridge/AP mode (disable its DHCP+NAT)
+# Downstream router in bridge/AP mode (disable its DHCP+NAT)
 # Basic ethernet AP — internet shared from eth0, GhostAP manages DHCP on eth1
 sudo ./GhostAP.sh --eth-ap -i eth1 --internet -si eth0
+
+# Same command also works to hand internet + interface access straight to a
+# second PC connected via an ethernet cable to eth1 — just set that PC's NIC
+# to DHCP and it will pick up an address/gateway from GhostAP automatically.
 ```
 
 #### Local Transparent Interception

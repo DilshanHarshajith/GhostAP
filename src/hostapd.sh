@@ -1,7 +1,9 @@
 #!/bin/bash
 
 configure_hostapd() {
-    # In Ethernet AP mode hostapd is not used — the downstream router provides the radio.
+    # In Ethernet AP mode hostapd is not used — there's no radio for GhostAP to
+    # manage. The port either faces a downstream router (its own radio serves
+    # the WiFi clients) or a single PC connected directly via ethernet cable.
     if [[ "${DEFAULTS[ETHERNET_MODE]}" == true ]]; then
         log "Ethernet AP mode: skipping hostapd (radio provided by downstream router)."
         return 0

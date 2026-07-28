@@ -32,7 +32,7 @@ start_services() {
 
     # ── hostapd ────────────────────────────────────────────────────────────────
     if [[ "${DEFAULTS[ETHERNET_MODE]}" == true ]]; then
-        log "Ethernet AP mode: skipping hostapd startup (downstream router provides the radio)."
+        log "Ethernet AP mode: skipping hostapd startup (no radio to manage — downstream router or directly connected PC)."
     else
         pkill -f "hostapd.*${HOSTAPD_CONF}" 2>/dev/null || true
         sleep 1

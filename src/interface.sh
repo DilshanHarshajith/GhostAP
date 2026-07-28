@@ -56,15 +56,17 @@ _configure_wireless_interface() {
 
 _configure_ethernet_interface() {
     log "Configuring ethernet interface (Ethernet AP mode)..."
-    log "In this mode the downstream router provides the WiFi radio."
-    log "GhostAP manages DHCP, NAT, and all features on the ethernet port facing that router."
+    log "In this mode there is no radio for GhostAP to manage: the port either"
+    log "faces a downstream router (its own WiFi radio serves the clients) or"
+    log "a single PC/laptop plugged in directly via a straight ethernet cable."
+    log "GhostAP manages DHCP, NAT, and all features on that ethernet port either way."
 
     local interfaces
     mapfile -t interfaces < <(get_ethernet_interfaces)
 
     if [[ ${INTERACTIVE_MODE} == true ]]; then
         if [[ -z "${ARG[INTERFACE]}" ]]; then
-            DEFAULTS[INTERFACE]=$(select_from_list "Select ethernet interface facing the downstream router:" "${interfaces[@]}")
+            DEFAULTS[INTERFACE]=$(select_from_list "Select ethernet interface (facing downstream router or directly connected PC):" "${interfaces[@]}")
             log "Selected interface: ${DEFAULTS[INTERFACE]}"
         else
             log "Using specified interface: ${DEFAULTS[INTERFACE]}"
@@ -95,10 +97,13 @@ _configure_ethernet_interface() {
     fi
 
     log "Ethernet AP interface set to: ${DEFAULTS[INTERFACE]}"
-    log "NOTE: Configure your downstream router in bridge/AP mode (disable its DHCP"
-    log "and NAT) so that GhostAP's DHCP and features reach the WiFi clients directly."
-    log "If your router only supports router mode, clients will be double-NATted and DNS"
-    log "spoofing / proxy features will only affect the router-to-GhostAP leg."
+    log "NOTE: If a downstream router is on the other end, put it in bridge/AP mode"
+    log "(disable its DHCP and NAT) so that GhostAP's DHCP and features reach the WiFi"
+    log "clients directly. If it only supports router mode, clients will be"
+    log "double-NATted and DNS spoofing / proxy features will only affect the"
+    log "router-to-GhostAP leg. If instead a single PC is plugged directly into this"
+    log "port via ethernet cable, no extra config is needed — just set that PC's NIC"
+    log "to DHCP and GhostAP will hand it an address, gateway, and full interface access."
 }
 
 configure_mac_in_interactive() {

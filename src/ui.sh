@@ -102,11 +102,14 @@ Interface Options:
   -i, --interface IFACE         Interface to use (wireless, or ethernet with --eth-ap)
   -si, --source-interface IFACE Source interface for internet sharing
   -m, --mac MAC                 MAC address to use (BSSID, wireless mode only)
-  --eth-ap, --ethernet-ap       Ethernet AP mode: use an ethernet port facing a downstream
-                                router as the AP interface. hostapd is
-                                skipped; the downstream router provides the WiFi radio.
-                                All other features (DHCP, proxy, DNS spoofing, etc.) apply
-                                on the ethernet port. See examples below.
+  --eth-ap, --ethernet-ap       Ethernet AP mode: use an ethernet port as the AP interface
+                                instead of a WiFi radio. hostapd is skipped. The other end
+                                of the cable can be a downstream router (its own WiFi radio
+                                serves the clients) or a single PC/laptop connected directly
+                                via a straight ethernet cable — GhostAP is the DHCP/NAT
+                                gateway either way, handing that PC an address and internet
+                                access directly. All other features (DHCP, proxy, DNS
+                                spoofing, etc.) apply on the ethernet port. See examples below.
 
 Network Options:
   -s, --ssid SSID               Network name (SSID)
@@ -193,12 +196,16 @@ Examples:
   sudo $0 -i wlan0 -s "MyAP" --security wpa2 --password "secret" --save myconfig
   sudo $0 --config myconfig
 
-  # ── Ethernet AP mode (a downstream router as the radio) ─────────
-  # Topology: Internet → eth0 (this machine) → eth1 → downstream router WAN → WiFi clients
-  # Tip: put your downstream router in bridge/AP mode (disable its DHCP+NAT) so GhostAP's
-  # DHCP and features reach the WiFi clients directly without double-NAT.
+  # ── Ethernet AP mode (downstream router, or a directly connected PC) ────
+  # Topology A: Internet → eth0 (this machine) → eth1 → downstream router WAN → WiFi clients
+  #   Tip: put your downstream router in bridge/AP mode (disable its DHCP+NAT) so GhostAP's
+  #   DHCP and features reach the WiFi clients directly without double-NAT.
+  # Topology B: Internet → eth0 (this machine) → eth1 → straight ethernet cable → single PC
+  #   No router involved — set that PC's NIC to DHCP and GhostAP hands it an address,
+  #   gateway, and full interface access directly.
 
   # Basic ethernet AP — internet shared from eth0, GhostAP manages DHCP on eth1
+  # (works whether eth1 is wired to a downstream router or directly to a PC)
   sudo $0 --eth-ap -i eth1 --internet -si eth0
 
   # Ethernet AP with DNS spoofing

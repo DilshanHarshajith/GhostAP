@@ -97,7 +97,6 @@ declare -A DEFAULTS=(
     [CAPTIVE_TEMPLATE]=""
 
     # Ethernet AP mode — use an ethernet interface instead of hostapd/WiFi
-    # The actual radio is connected downstream on that port.
     [ETHERNET_MODE]=false
 )
 
