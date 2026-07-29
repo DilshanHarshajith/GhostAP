@@ -82,13 +82,18 @@ get_ap_info() {
   local interface="${2:-wlan0}"
 
   iwlist "$interface" scan | awk -v ssid="$target_ssid" '
-    BEGIN {
-      mac = ""; channel = ""; essid = "";
+    function flush() {
+      if (essid == ssid && mac != "" && channel != "") {
+        if (enc == "off") security = "open";
+        else if (security == "") security = "wpa2";  # encrypted but IE not parsed — assume wpa2
+        print essid "|" channel "|" mac "|" security;
+      }
     }
 
     /Cell [0-9]+ - Address:/ {
+      flush();
       mac = $NF;
-      channel = ""; essid = "";
+      channel = ""; essid = ""; enc = ""; security = "";
     }
 
     /Channel:/ {
@@ -96,17 +101,33 @@ get_ap_info() {
     }
 
     /Frequency:/ {
-      match($0, /\(Channel ([0-9]+)\)/, arr);
-      if (arr[1] != "") channel = arr[1];
+      if (match($0, /\(Channel [0-9]+\)/)) {
+        chan_str = substr($0, RSTART, RLENGTH);
+        gsub(/[^0-9]/, "", chan_str);
+        if (chan_str != "") channel = chan_str;
+      }
+    }
+
+    /Encryption key:/ {
+      enc = ($0 ~ /on/) ? "on" : "off";
     }
 
     /ESSID:/ {
-      match($0, /ESSID:"(.*)"/, arr);
-      essid = arr[1];
-      if (essid == ssid && mac && channel) {
-        print essid "|" channel "|" mac;
-      }
+      line = $0;
+      sub(/^.*ESSID:"/, "", line);
+      sub(/".*$/, "", line);
+      essid = line;
     }
+
+    /IE: IEEE 802\.11i\/WPA2/ {
+      if (security == "") security = "wpa2";
+    }
+
+    /Authentication Suites.*SAE/ {
+      security = "wpa3";
+    }
+
+    END { flush(); }
   '
 }
 

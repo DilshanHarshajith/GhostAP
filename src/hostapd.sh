@@ -46,22 +46,24 @@ configure_hostapd() {
                 sec_choice=$(select_from_list "Security type:" 1 "Open (no password)" "WPA2-PSK (password)" "WPA3-SAE (WPA3)")
                 security="${SECURITY_MAP[${sec_choice}]}"
             fi
-
-            if [[ -z "${ARG[PASSWORD]}" && "${security}" != "open" ]]; then
-                while true; do
-                    read -s -r -p "Password (8-63 characters): " password
-                    echo
-                    if [[ ${#password} -ge 8 && ${#password} -le 63 ]]; then
-                        break
-                    else
-                        echo "Password must be 8-63 characters long"
-                    fi
-                done
-            fi
-            
-            DEFAULTS[SECURITY]="${security}"
-            DEFAULTS[PASSWORD]="${password}"
         fi
+
+        # Password prompt runs for clones too, since a cloned WPA2/WPA3
+        # network still needs a real password — it just can't come from the scan.
+        if [[ -z "${ARG[PASSWORD]}" && "${security}" != "open" && -z "${password}" ]]; then
+            while true; do
+                read -s -r -p "Password for '${ssid}' (8-63 characters): " password
+                echo
+                if [[ ${#password} -ge 8 && ${#password} -le 63 ]]; then
+                    break
+                else
+                    echo "Password must be 8-63 characters long"
+                fi
+            done
+        fi
+
+        DEFAULTS[SECURITY]="${security}"
+        DEFAULTS[PASSWORD]="${password}"
     else
         # Non-Interactive Mode Validation
         if [[ "${DEFAULTS[CLONE]}" != "true" ]]; then

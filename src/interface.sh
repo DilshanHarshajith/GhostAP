@@ -187,6 +187,17 @@ configure_clone(){
         log "Preserving specified MAC: ${DEFAULTS[MAC]} (ignoring clone MAC: $mac)"
     fi
 
+	if [[ -z "${ARG[SECURITY]}" ]]; then
+		DEFAULTS[SECURITY]="${ap_security:-open}"
+		log "Cloned security type: ${DEFAULTS[SECURITY]}"
+	else
+		log "Preserving specified security type: ${DEFAULTS[SECURITY]} (ignoring clone security: ${ap_security})"
+	fi
 
-    log "Cloning interface ${DEFAULTS[INTERFACE]} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}"
+	if [[ "${DEFAULTS[SECURITY]}" != "open" && -z "${DEFAULTS[PASSWORD]}" ]]; then
+		warn "Cloned network '${ssid}' uses ${DEFAULTS[SECURITY]} — its password can't be sniffed from a scan."
+		warn "You must supply the real password with --password (or you'll be prompted if running interactively)."
+	fi
+
+	log "Cloning interface ${DEFAULTS[INTERFACE]} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}, Security: ${DEFAULTS[SECURITY]}"
 }
