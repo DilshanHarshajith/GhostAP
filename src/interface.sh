@@ -1,8 +1,17 @@
 #!/bin/bash
 
 configure_interface() {
-    # In interactive mode, ask whether to use ethernet AP mode if not already decided
-    if [[ "${INTERACTIVE_MODE}" == true && -z "${ARG[ETHERNET_MODE]}" ]]; then
+    # If the user already specified an interface, infer AP mode directly from
+    # it instead of asking — the interface type tells us which mode applies.
+    # --eth-ap still wins if explicitly passed alongside -i.
+    if [[ -n "${ARG[INTERFACE]}" && -z "${ARG[ETHERNET_MODE]}" ]]; then
+        if [[ -e "/sys/class/net/${DEFAULTS[INTERFACE]}/wireless" ]]; then
+            DEFAULTS[ETHERNET_MODE]=false
+        else
+            DEFAULTS[ETHERNET_MODE]=true
+            log "Interface ${DEFAULTS[INTERFACE]} has no wireless capability — enabling Ethernet AP mode automatically."
+        fi
+    elif [[ "${INTERACTIVE_MODE}" == true && -z "${ARG[ETHERNET_MODE]}" ]]; then
         read -r -p "Use ethernet AP mode? (y/N): " eth_mode_input
         if [[ "${eth_mode_input}" =~ ^[Yy]$ ]]; then
             DEFAULTS[ETHERNET_MODE]=true
