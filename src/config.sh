@@ -253,6 +253,15 @@ parse_arguments() {
                     shift
                 fi
                 ;;
+            --scan-aps)
+                SCAN_APS_ONLY=true
+                if [[ -n "${2:-}" && "$2" =~ ^[0-9]+$ ]]; then
+                    SCAN_APS_DURATION="$2"
+                    shift 2
+                else
+                    shift
+                fi
+                ;;
             --local-proxy)
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_LOCAL"
                 DEFAULTS[PROXY_ENABLED]=true

@@ -151,62 +151,33 @@ configure_clone(){
     [[ "${DEFAULTS[CLONE]}" == true ]] || return 0
     log "Configuring interface cloning..."
 
-    if [[ "${INTERACTIVE_MODE}" == true ]]; then
-        if [[ -z "${ARG[CLONE_SSID]}" ]]; then
-            mapfile -t wifi_aps < <(get_wifi_ssids "${DEFAULTS[INTERFACE]}")
-            DEFAULTS[CLONE_SSID]=$(select_from_list "Select Access Point for cloning interface:" "${wifi_aps[@]}")
-            log "Selected Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
-        else
-            log "Using specified Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
-        fi
-    elif [[ -n "${ARG[CLONE_SSID]}" ]]; then
+    # An explicit target was already given (--clone "SSID", or loaded from
+    # a saved config) — resolve it directly via a scan instead of asking.
+    if [[ -n "${ARG[CLONE_SSID]}" ]]; then
         log "Using specified Access Point for cloning: ${DEFAULTS[CLONE_SSID]}"
-    else
-        log "No Access Point specified for cloning"
-    fi
-
-    [[ -n "${DEFAULTS[CLONE_SSID]}" ]] || {
-        warn "No Access Point specified for cloning, skipping interface cloning"
-        DEFAULTS[CLONE]=false
-        return 0
-    }
-
-    IFS="|" read -r ssid channel mac ap_security < <(get_ap_info "${DEFAULTS[CLONE_SSID]}" "${DEFAULTS[INTERFACE]}")
-
-    if [[ -z "${ssid}" || -z "${channel}" ]]; then
-        error "Clone target '${DEFAULTS[CLONE_SSID]}' was not found in the scan results on ${DEFAULTS[INTERFACE]}." \
+        if configure_clone_resolve_target "${DEFAULTS[CLONE_SSID]}"; then
+            return 0
+        fi
+        error "Clone target '${DEFAULTS[CLONE_SSID]}' was not found in range on ${DEFAULTS[INTERFACE]}." \
               "Ensure the target AP is in range and try again."
     fi
 
-    if [[ -z "${ARG[SSID]}" ]]; then
-        DEFAULTS[SSID]="$ssid"
-    else
-        log "Preserving specified SSID: ${DEFAULTS[SSID]} (ignoring clone SSID: $ssid)"
+    if [[ "${INTERACTIVE_MODE}" == true ]]; then
+        read -r -p "Run a live scan (SSID, channel, security, signal) to help pick a target? (y/N): " live_answer
+        if [[ "${live_answer}" =~ ^[Yy]$ ]] && configure_clone_live_scan; then
+            return 0
+        fi
+
+        if configure_clone_quick_scan; then
+            return 0
+        fi
+
+        warn "No Access Point specified for cloning, skipping interface cloning"
+        DEFAULTS[CLONE]=false
+        return 0
     fi
 
-    if [[ -z "${ARG[CHANNEL]}" ]]; then
-        DEFAULTS[CHANNEL]="$channel"
-    else
-        log "Preserving specified Channel: ${DEFAULTS[CHANNEL]} (ignoring clone Channel: $channel)"
-    fi
-
-    if [[ -z "${ARG[MAC]}" ]]; then
-        DEFAULTS[MAC]="$mac"
-    else
-        log "Preserving specified MAC: ${DEFAULTS[MAC]} (ignoring clone MAC: $mac)"
-    fi
-
-	if [[ -z "${ARG[SECURITY]}" ]]; then
-		DEFAULTS[SECURITY]="${ap_security:-open}"
-		log "Cloned security type: ${DEFAULTS[SECURITY]}"
-	else
-		log "Preserving specified security type: ${DEFAULTS[SECURITY]} (ignoring clone security: ${ap_security})"
-	fi
-
-	if [[ "${DEFAULTS[SECURITY]}" != "open" && -z "${DEFAULTS[PASSWORD]}" ]]; then
-		warn "Cloned network '${ssid}' uses ${DEFAULTS[SECURITY]} — its password can't be sniffed from a scan."
-		warn "You must supply the real password with --password (or you'll be prompted if running interactively)."
-	fi
-
-	log "Cloning interface ${DEFAULTS[INTERFACE]} with SSID: ${DEFAULTS[SSID]}, Channel: ${DEFAULTS[CHANNEL]}, MAC: ${DEFAULTS[MAC]}, Security: ${DEFAULTS[SECURITY]}"
+    # Non-interactive, no explicit SSID — nothing to scan for automatically.
+    warn "No Access Point specified for cloning, skipping interface cloning"
+    DEFAULTS[CLONE]=false
 }

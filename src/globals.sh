@@ -106,6 +106,10 @@ declare -g INTERACTIVE_MODE=false
 declare -g SAVE_CONFIG=false
 declare -g CONFIG_FILE="${SETUP_DIR}/default.conf"
 
+# --scan-aps: one-shot standalone AP survey, not a saved config setting
+declare -g SCAN_APS_ONLY=false
+declare -g SCAN_APS_DURATION=15
+
 # Packet Capture Globals
 declare -g CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 declare -g TMP_CAPTURE=""

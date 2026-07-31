@@ -128,6 +128,13 @@ Feature Options:
   --spoof-target IP             Default target IP for domains without explicit IP
   --block-doh                   Block DNS-over-HTTPS to enforce DNS spoofing
 
+Scan Options:
+  --scan-aps [SECONDS]           Standalone AP survey: scans and prints nearby access points
+                                (BSSID, SSID, channel, security, signal), then exits without
+                                cloning or starting an AP. Live table in interactive mode
+                                (press any key to stop); fixed duration otherwise (default: 15s).
+                                Uses the same scanning engine as --clone.
+
 Captive Portal Options:
   --captive                     Enable captive portal (intercepts clients until they submit)
   --captive-port PORT           Port for the captive portal server (default: 8880)
@@ -169,6 +176,14 @@ Examples:
 
   # Clone an existing access point
   sudo $0 -i wlan0 --clone "TargetSSID"
+
+  # Clone with a live scan (interactive) — prompts you to pick from a
+  # continuously updating table of nearby APs (SSID, channel, security, signal)
+  sudo $0 -i wlan0 --int --clone
+
+  # Standalone AP survey — just look at what's nearby, no cloning or AP setup
+  sudo $0 -i wlan0 --int --scan-aps
+  sudo $0 -i wlan0 --scan-aps 20
 
   # Captive portal with built-in page and internet sharing
   sudo $0 -i wlan0 -s "FreeWifi" --security open --captive --internet -si eth0
