@@ -6,7 +6,8 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 
 - **Wireless Access Point Creation**: Set up secure (WPA2/WPA3) or open WiFi networks
 - **Ethernet AP Mode**: Route traffic through downstream hardware without hostapd — works with a downstream router/AP, or a single PC plugged in directly via a straight ethernet cable
-- **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration
+- **AP Cloning**: Quickly clone existing networks by SSID, or discover targets with a live/quick monitor-mode scan, with automatic configuration
+- **AP Scanning**: Monitor-mode beacon scanning (BSSID, SSID, channel, security, signal) — live continuously-updating view or a standalone survey with `--scan-aps`
 - **Internet Sharing**: Share internet connection from another interface via NAT
 - **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
 - **Packet Capture**: Real-time traffic monitoring and PCAP export with tshark
@@ -39,7 +40,7 @@ sudo apt install hostapd dnsmasq wireless-tools net-tools iptables iproute2
 ### Optional Dependencies
 
 ```bash
-# For packet capture
+# For packet capture, AP cloning discovery, and AP scanning (--scan-aps)
 sudo apt install wireshark-common
 
 # For proxy routing
@@ -51,6 +52,9 @@ sudo apt install openvpn wireguard-tools
 # For advanced interception (optional)
 sudo apt install mitmproxy
 ```
+
+> [!NOTE]
+> AP cloning discovery and `--scan-aps` briefly switch the wireless interface into monitor mode to capture beacon frames, which requires both `tshark` and a driver/adapter that supports monitor mode (`iw list` → check for `monitor` under "Supported interface modes").
 
 ## Installation
 
@@ -125,7 +129,26 @@ sudo ./GhostAP.sh -i wlan0 -s "ProxyAP" --proxy --proxy-host 127.0.0.1 --proxy-p
 #### Clone an Existing Access Point
 
 ```bash
+# Clone by SSID directly — resolved via a short scan (BSSID/channel/security
+# picked up automatically; if multiple nearby APs share the SSID, the
+# strongest-signal match is used and the ambiguity is logged)
 sudo ./GhostAP.sh -i wlan0 --clone "Target_SSID"
+
+# Interactive: no SSID given — offers a live, continuously-updating scan table
+# to pick from (press any key to stop), or falls back to a quick scan + list
+sudo ./GhostAP.sh -i wlan0 --int --clone
+```
+
+#### Scan for Nearby Access Points
+
+```bash
+# Standalone survey — no cloning, no AP setup, just look at what's nearby
+# Live table in interactive mode (press any key to stop)
+sudo ./GhostAP.sh -i wlan0 --int --scan-aps
+
+# Fixed-duration snapshot (non-interactive), default 15s
+sudo ./GhostAP.sh -i wlan0 --scan-aps
+sudo ./GhostAP.sh -i wlan0 --scan-aps 20
 ```
 
 #### Ethernet AP Mode (Downstream Router as Radio, or a Directly Connected PC)
@@ -200,6 +223,15 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 | `--vpn-interface IFACE`         | Use an existing VPN interface             |
 | `--vpn-creds USER:PASS`         | OpenVPN credentials (non-interactive)     |
 | `--clone SSID`                  | Clone an existing AP by SSID              |
+
+> [!NOTE]
+> `--clone SSID` resolves the target via a short monitor-mode scan (not a saved network list) — the AP must be in range and broadcasting at the time GhostAP runs.
+
+### Scan Options
+
+| Option                | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `--scan-aps [SECONDS]` | Standalone AP survey: prints nearby APs (BSSID, SSID, channel, security, signal) and exits — no cloning, no AP setup. Live table in interactive mode; fixed duration otherwise (default: 15s). |
 
 ### Network Options
 
@@ -313,6 +345,29 @@ CAPTIVE_TEMPLATE=""
 ```
 
 ## Advanced Features
+
+### AP Scanning & Clone Discovery
+
+GhostAP discovers nearby access points by briefly switching the wireless interface into monitor mode, hopping across channels, and capturing beacon frames with `tshark` — rather than relying on a cached network list. This is used both for AP cloning and for the standalone `--scan-aps` survey.
+
+**What's captured per AP:**
+
+- **BSSID** — exact MAC address, so networks sharing an SSID can be told apart
+- **SSID** — decoded from raw bytes, including hex-encoded/non-ASCII SSIDs
+- **Channel** and **signal strength** (dBm)
+- **Security** — classified as open/WPA2/WPA3 from the actual RSN/AKM fields in the beacon, not guessed from the privacy bit alone
+
+**Two scan modes:**
+
+- **Live** (interactive only): a continuously-updating table, refreshed roughly once per second. Stop it by pressing any key, then pick an AP from the list.
+- **Quick / fixed-duration**: a short scan window (default 10s for clone discovery, 15s for `--scan-aps`) with no live rendering — used automatically in non-interactive contexts, or as the default interactive picker if you skip the live scan.
+
+**Resolving `--clone "SSID"` directly:** a short scan runs to find that SSID, and if multiple nearby APs are broadcasting the same name, the strongest-signal match is used and the ambiguity is logged rather than silently picking one.
+
+**Explicit overrides always win:** if you pass `--ssid`, `--channel`, `--mac`, or `--security` alongside `--clone`, those values are kept as-is and the corresponding scanned value is discarded (and logged).
+
+> [!NOTE]
+> Scanning only observes what access points broadcast (beacons) — it does not track or fingerprint client devices. Only clone or scan networks you own or have explicit permission to test.
 
 ### DNS Spoofing
 
@@ -464,9 +519,12 @@ GhostAP/
 └── src/
     ├── globals.sh       # Global variables and constants
     ├── utils.sh         # Logging, validation, cleanup functions
+    ├── network.sh       # Interface discovery (wireless/ethernet/internet-connected)
     ├── config.sh        # Configuration management and argument parsing
     ├── ui.sh            # User interface and status display
-    ├── interface.sh     # Wireless interface management
+    ├── interface.sh     # Wireless interface management, AP cloning flow
+    ├── scan.sh          # Monitor-mode AP scanning (clone discovery, --scan-aps)
+    ├── vpn.sh           # VPN routing (OpenVPN/WireGuard/existing interface)
     ├── hostapd.sh       # Access point configuration
     ├── dnsmasq.sh       # DHCP/DNS server and spoofing
     ├── internet.sh      # NAT and internet sharing
@@ -488,7 +546,7 @@ tail -f Logs/GhostAP.log
 
 - `Logs/hostapd.log` - Access point service logs
 - `Logs/dnsmasq.log` - DHCP/DNS service logs
-- `Logs/tshark.log` - Packet capture logs
+- `Logs/tshark.log` - Packet capture and AP scanning (cloning/`--scan-aps`) logs
 - `Logs/redsocks.log` - Proxy service logs (when applicable)
 - `Logs/captive.log` - Captive portal server logs (when applicable)
 
@@ -532,6 +590,13 @@ journalctl -u dnsmasq
 - Verify source interface has internet connectivity
 - Check iptables rules: `iptables -L -n -t nat`
 - Ensure IP forwarding is enabled: `cat /proc/sys/net/ipv4/ip_forward`
+
+#### Scan / Clone Discovery Shows No APs
+
+- Verify `tshark` is installed and either running as root or has `cap_net_raw,cap_net_admin` capabilities set.
+- Confirm the wireless adapter/driver supports monitor mode: `iw list` and check for `monitor` under "Supported interface modes".
+- Some drivers need a brief settle time after switching to monitor mode. The quick picker and `--clone "SSID"` use a fixed ~10s window; if that's not enough, try the live scan instead (`--int --clone`, or `--int --scan-aps`) and let it run longer before pressing a key.
+- Check `Logs/tshark.log` for capture errors.
 
 ### Debug Mode
 
