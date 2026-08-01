@@ -75,11 +75,9 @@ main() {
     show_status
 
     log "Entering main loop, waiting for signals..."
-    local dhcp_lease_file="${TMP_DIR}/dhcp.leases"
-    local last_lease_chksum=""
-    
+
     while true; do
-        sleep 5
+        sleep 3
         
         # Check processes
         for process_pid in "${PIDS[@]}"; do
@@ -88,14 +86,11 @@ main() {
             fi
         done
         
-        # Monitor Connected Devices
-        if [[ -f "${dhcp_lease_file}" ]]; then
-             local current_chksum=$(md5sum "${dhcp_lease_file}" | awk '{print $1}')
-             if [[ "${current_chksum}" != "${last_lease_chksum}" ]]; then
-                last_lease_chksum="${current_chksum}"
-                show_connected_clients
-             fi
-        fi
+        # Refresh the connected-client display every loop.
+        # show_connected_clients uses ARP state so clients that left without
+        # sending DHCPRELEASE are removed promptly, even if dnsmasq does not
+        # rewrite the lease file.
+        show_connected_clients
     done
 }
 

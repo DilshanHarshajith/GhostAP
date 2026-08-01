@@ -240,39 +240,101 @@ For more information, visit: https://github.com/DilshanHarshajith/GhostAP
 EOF
 }
 
+# Number of lines in the last connected-devices block.
+# This allows the next refresh to erase only that block, instead of
+# appending a new one on every update.
+declare -g CLIENTS_TABLE_LAST_LINES=0
+
+# ARP-miss counters per MAC. A single missing neighbor entry is not enough
+# to consider a client gone; the client is marked offline only after
+# CLIENT_OFFLINE_THRESHOLD consecutive misses.
+declare -g -A CLIENT_ARP_MISSES=()
+declare -g CLIENT_OFFLINE_THRESHOLD=3
+
+# Returns the neighbor state for an IP on the AP interface.
+# The ARP/neighbor state is used to determine whether a DHCP lease still
+# represents an active client.
+_client_arp_state() {
+    local iface="$1" ip="$2"
+    ip neigh show to "${ip}" dev "${iface}" 2>/dev/null | awk '{print $NF}'
+}
+
+# Render the connected-devices table from DHCP leases and live ARP state.
+# Uses a short grace period for missed ARP checks so clients do not drop
+# from the list due to a single transient probe failure. The table is
+# redrawn in place instead of appended on every refresh.
 show_connected_clients() {
     local lease_file="${TMP_DIR}/dhcp.leases"
-    
-    echo
-    echo "=========================================="
-    echo "           Connected Devices              "
-    echo "=========================================="
-    
+    local iface="${DEFAULTS[INTERFACE]}"
+    local -a out=()
+    local -A misses_next=()
+
+    out+=("==========================================")
+    out+=("           Connected Devices              ")
+    out+=("==========================================")
+
     if [[ ! -f "${lease_file}" ]]; then
-        echo "Waiting for connections..."
-        return
+        out+=("Waiting for connections...")
+    elif [[ ! -s "${lease_file}" ]]; then
+        out+=("No devices connected yet.")
+    else
+        out+=("$(printf "%-20s %-15s %-20s %-8s" "MAC Address" "IP Address" "Hostname" "Status")")
+        out+=("--------------------------------------------------------------")
+
+        local any_online=false
+        while read -r _ mac ip hostname _; do
+            [[ -z "${mac}" || -z "${ip}" ]] && continue
+            [[ "${hostname}" == "*" ]] && hostname="Unknown"
+
+            local state
+            state="$(_client_arp_state "${iface}" "${ip}")"
+
+            case "${state}" in
+                REACHABLE|DELAY|PROBE|STALE|PERMANENT)
+                    misses_next["${mac}"]=0
+                    out+=("$(printf "%-20s %-15s %-20s %-8s" "${mac}" "${ip}" "${hostname}" "Online")")
+                    any_online=true
+                    ;;
+                *)
+                    # No live ARP entry this check. Ping in the background
+                    # (non-blocking, short timeout) to help refresh the ARP
+                    # cache for the next cycle, and only actually drop the
+                    # client once it has missed CLIENT_OFFLINE_THRESHOLD
+                    # checks in a row.
+                    ( ping -c 1 -W 1 -I "${iface}" "${ip}" &>/dev/null & )
+                    local prev_misses=${CLIENT_ARP_MISSES["${mac}"]:-0}
+                    local misses=$((prev_misses + 1))
+                    misses_next["${mac}"]=${misses}
+                    if (( misses < CLIENT_OFFLINE_THRESHOLD )); then
+                        out+=("$(printf "%-20s %-15s %-20s %-8s" "${mac}" "${ip}" "${hostname}" "Online")")
+                        any_online=true
+                    fi
+                    ;;
+            esac
+        done < "${lease_file}"
+
+        # Replace wholesale so MACs no longer in the lease file don't
+        # accumulate in the miss-count map indefinitely.
+        CLIENT_ARP_MISSES=()
+        local mac_key
+        for mac_key in "${!misses_next[@]}"; do
+            CLIENT_ARP_MISSES["${mac_key}"]=${misses_next[${mac_key}]}
+        done
+
+        [[ "${any_online}" == false ]] && out+=("No devices currently connected.")
     fi
-    
-    # Check if file is empty
-    if [[ ! -s "${lease_file}" ]]; then
-        echo "No devices connected yet."
-        return
+    out+=("==========================================")
+
+    # Erase the previous table in place (only if stderr is an actual
+    # terminal — skip the escape codes when logging to a file/pipe).
+    # NOTE: redirection order matters here — stdout (the escape codes) must
+    # be pointed at fd2 BEFORE fd2 itself gets redirected to /dev/null, or
+    # the escape codes get thrown away along with tput's own error output.
+    if [[ ${CLIENTS_TABLE_LAST_LINES} -gt 0 && -t 2 ]]; then
+        tput cuu "${CLIENTS_TABLE_LAST_LINES}" >&2 2>/dev/null
+        tput ed >&2 2>/dev/null
     fi
-    
-    printf "%-20s %-15s %-20s\n" "MAC Address" "IP Address" "Hostname"
-    echo "--------------------------------------------------------"
-    
-    while read -r line; do
-        # dnsmasq lease format: time mac ip hostname client_id
-        local mac=$(echo "$line" | awk '{print $2}')
-        local ip=$(echo "$line" | awk '{print $3}')
-        local hostname=$(echo "$line" | awk '{print $4}')
-        
-        if [[ "${hostname}" == "*" ]]; then
-            hostname="Unknown"
-        fi
-        
-        printf "%-20s %-15s %-20s\n" "${mac}" "${ip}" "${hostname}"
-    done < "${lease_file}"
-    echo "=========================================="
+
+    printf '%s\n' "${out[@]}" >&2
+    CLIENTS_TABLE_LAST_LINES=${#out[@]}
 }
