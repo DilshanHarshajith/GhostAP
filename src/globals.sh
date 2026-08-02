@@ -31,6 +31,7 @@ declare -g HOSTAPD_LOG="${LOG_DIR}/hostapd.log"
 declare -g DNSMASQ_LOG="${LOG_DIR}/dnsmasq.log"
 declare -g REDSOCKS_LOG="${LOG_DIR}/redsocks.log"
 declare -g TSHARK_LOG="${LOG_DIR}/tshark.log"
+declare -g AIRODUMP_LOG="${LOG_DIR}/airodump.log"
 
 # SSLKeylog file
 declare -g SSLKEYLOGFILE="${OUT_DIR}/sslkey.log"

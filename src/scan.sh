@@ -3,8 +3,10 @@
 # AP scanning
 # ------------------------------------------------------------------
 # All over-the-air AP discovery lives here: entering/exiting monitor
-# mode, channel hopping, and a tshark capture that parses beacon frames
-# for BSSID/SSID/channel/security/signal.
+# mode and an airodump-ng capture (CSV output) that supplies
+# BSSID/SSID/channel/security/signal. airodump-ng owns channel hopping
+# itself (restricted to the same channel set GhostAP used to hop
+# manually), so there is no separate hopper process to manage.
 #
 # The functions below are split into two layers:
 #   - scan_* / _scan_*   Universal primitives. No knowledge of cloning,
@@ -20,9 +22,8 @@
 # Only use against networks/devices you own or are explicitly
 # authorized to test.
 
-declare -g SCAN_HOPPER_PID=""
-declare -g SCAN_TSHARK_PID=""
-declare -g SCAN_FIELDS_FILE=""
+declare -g SCAN_AIRODUMP_PID=""
+declare -g SCAN_CSV_PREFIX=""
 
 # Default duration (seconds) for the non-live "quick" scans used by the
 # plain interactive picker and explicit --clone "SSID" resolution. These
@@ -46,84 +47,53 @@ _scan_decode_ssid() {
     local raw="${1:-}"
     [[ -z "${raw}" ]] && { printf '%s' ""; return 0; }
 
+    # airodump-ng's CSV already gives plain ESSID text (blank for hidden
+    # networks) — just strip line endings and trim surrounding whitespace.
     local cleaned="${raw//[$'\r\n']/}"
     cleaned="${cleaned//$'\t'/}"
+    cleaned="${cleaned#"${cleaned%%[![:space:]]*}"}"
+    cleaned="${cleaned%"${cleaned##*[![:space:]]}"}"
 
-    if [[ "${cleaned}" =~ ^[0-9A-Fa-f]+$ ]] && (( ${#cleaned} % 2 == 0 )); then
-        if command -v xxd >/dev/null 2>&1; then
-            printf '%s' "${cleaned}" | xxd -r -p 2>/dev/null || printf '%s' "${cleaned}"
-        elif command -v python3 >/dev/null 2>&1; then
-            python3 -c 'import sys; import binascii; raw=sys.argv[1].strip(); sys.stdout.write(bytes.fromhex(raw).decode("utf-8", "replace"))' "${cleaned}"
-        else
-            printf '%s' "${cleaned}"
-        fi
-    else
-        printf '%s' "${cleaned}"
-    fi
+    printf '%s' "${cleaned}"
 }
 
+# Classifies security from airodump-ng's CSV "Privacy" and "Authentication"
+# columns (e.g. Privacy: OPN/WEP/WPA/WPA2/WPA3, Authentication: PSK/MGT/SAE).
 _scan_classify_security() {
-    local privacy="${1:-0}"
-    local rsn_akms="${2:-}"
-    local rsn_akm_oui="${3:-}"
-    local rsn_akm_type="${4:-}"
+    local privacy="${1:-}"
+    local auth="${2:-}"
 
-    local normalized_privacy="${privacy,,}"
-    normalized_privacy="${normalized_privacy//[[:space:]]/}"
+    local p="${privacy^^}"
+    p="${p//[[:space:]]/}"
+    local a="${auth^^}"
+    a="${a//[[:space:]]/}"
 
-    if [[ "${normalized_privacy}" == "0" || "${normalized_privacy}" == "off" || "${normalized_privacy}" == "false" || "${normalized_privacy}" == "no" ]]; then
+    if [[ -z "${p}" || "${p}" == "OPN" ]]; then
         printf 'open'
         return 0
     fi
 
-    local akm_oui="${rsn_akm_oui:-}"
-    local akm_type="${rsn_akm_type:-}"
-
-    if [[ -n "${akm_oui}" && -n "${akm_type}" ]]; then
-        akm_oui="${akm_oui//[[:space:]]/}"
-        akm_type="${akm_type//[[:space:]]/}"
-        akm_oui="${akm_oui//0x/}"
-        akm_type="${akm_type//0x/}"
-        akm_oui="${akm_oui,,}"
-        akm_type="${akm_type,,}"
-
-        if [[ "${akm_oui}" == "00:0f:ac" || "${akm_oui}" == "000fac" || "${akm_oui}" == "000fac08" ]]; then
-            case "${akm_type}" in
-                1|2)
-                    printf 'wpa2'
-                    ;;
-                8|9|13|15)
-                    printf 'wpa3'
-                    ;;
-                *)
-                    printf 'wpa2'
-                    ;;
-            esac
-            return 0
-        fi
+    # SAE (WPA3-Personal) shows up in Authentication; airodump also marks
+    # transitional/WPA3 networks directly in Privacy (e.g. "WPA2WPA3").
+    if [[ "${a}" == *"SAE"* || "${p}" == *"WPA3"* ]]; then
+        printf 'wpa3'
+        return 0
     fi
 
-    if [[ -n "${rsn_akms}" ]]; then
-        local normalized="${rsn_akms//[[:space:]]/}"
-        normalized="${normalized//0x/}"
-        normalized="${normalized,,}"
-
-        if [[ "${normalized}" == *"000fac08"* ]] || [[ "${normalized}" == *"000fac09"* ]] || [[ "${normalized}" == *"000fac0d"* ]] || [[ "${normalized}" == *"000fac0f"* ]] || [[ "${normalized}" == *"sae"* ]]; then
-            printf 'wpa3'
-            return 0
-        fi
-    fi
-
+    # WEP/WPA/WPA2/enterprise all fall back to wpa2 here, same as before —
+    # GhostAP only ever needs to distinguish open/wpa2/wpa3 for cloning.
     printf 'wpa2'
 }
 
-_scan_channels() {
-    # 2.4GHz always; append 5GHz UNII-1 if the card reports support for it
+# Comma-separated channel list passed to airodump-ng's -c flag, restricting
+# the hop set to the same channels GhostAP used to hop manually.
+_scan_channel_list() {
     local chans=(1 2 3 4 5 6 7 8 9 10 11)
     if iw phy 2>/dev/null | grep -q "5180 MHz"; then
         chans+=(36 40 44 48)
     fi
-    printf '%s\n' "${chans[@]}"
+    local IFS=,
+    printf '%s' "${chans[*]}"
 }
 
 _scan_enter_monitor_mode() {
@@ -149,75 +119,102 @@ _scan_exit_monitor_mode() {
     ip link set "${iface}" up 2>/dev/null || true
 }
 
-_scan_start_hopper() {
-    local iface="$1"
-    local -a chans
-    mapfile -t chans < <(_scan_channels)
-
-    (
-        while true; do
-            for ch in "${chans[@]}"; do
-                iw dev "${iface}" set channel "${ch}" 2>/dev/null
-                sleep 0.4
-            done
-        done
-    ) &
-    SCAN_HOPPER_PID=$!
-}
-
 _scan_start_capture() {
     local iface="$1"
-    SCAN_FIELDS_FILE="${TMP_DIR}/scan_live.tsv"
-    : > "${SCAN_FIELDS_FILE}"
 
-    # type_subtype: 0x08 = beacon
-    tshark -i "${iface}" -l \
-        -Y "wlan.fc.type_subtype == 0x08" \
-        -T fields -E separator=/t \
-        -e wlan.bssid -e wlan.ssid \
-        -e radiotap.dbm_antsignal -e wlan.ds.current_channel \
-        -e wlan.fixed.capabilities.privacy -e wlan.rsn.akms \
-        -e wlan.rsn.akms.oui -e wlan.rsn.akms.type \
-        >> "${SCAN_FIELDS_FILE}" 2>>"${TSHARK_LOG}" &
-    SCAN_TSHARK_PID=$!
+    # Fresh, unique prefix per scan session — airodump-ng writes
+    # "${prefix}-01.csv" and we don't want stale data from a previous run
+    # bleeding into this one (or -02/-03 rollover if a prefix is reused).
+    SCAN_CSV_PREFIX="${TMP_DIR}/scan_airodump_$$_$(date +%s%N)"
+
+    local chanlist
+    chanlist="$(_scan_channel_list)"
+
+    airodump-ng --write "${SCAN_CSV_PREFIX}" --output-format csv \
+        -c "${chanlist}" "${iface}" \
+        >> "${AIRODUMP_LOG}" 2>&1 &
+    SCAN_AIRODUMP_PID=$!
 
     sleep 1
-    if ! kill -0 "${SCAN_TSHARK_PID}" 2>/dev/null; then
-        warn "tshark failed to start for AP scan capture. Check ${TSHARK_LOG}"
+    if ! kill -0 "${SCAN_AIRODUMP_PID}" 2>/dev/null; then
+        warn "airodump-ng failed to start for AP scan capture. Check ${AIRODUMP_LOG}"
+        SCAN_AIRODUMP_PID=""
         return 1
     fi
+
+    # airodump-ng writes the CSV file once it has something to say —
+    # give it a moment before callers start polling _scan_refresh_data.
+    local wait_count=0
+    while [[ ! -f "${SCAN_CSV_PREFIX}-01.csv" ]] && [[ ${wait_count} -lt 5 ]]; do
+        sleep 1
+        ((wait_count++))
+    done
+
     return 0
 }
 
 _scan_stop_background() {
-    [[ -n "${SCAN_HOPPER_PID}" ]] && kill "${SCAN_HOPPER_PID}" 2>/dev/null
-    wait "${SCAN_HOPPER_PID}" 2>/dev/null
-    SCAN_HOPPER_PID=""
+    if [[ -n "${SCAN_AIRODUMP_PID}" ]]; then
+        kill "${SCAN_AIRODUMP_PID}" 2>/dev/null
+        wait "${SCAN_AIRODUMP_PID}" 2>/dev/null
+    fi
+    SCAN_AIRODUMP_PID=""
 
-    [[ -n "${SCAN_TSHARK_PID}" ]] && kill "${SCAN_TSHARK_PID}" 2>/dev/null
-    wait "${SCAN_TSHARK_PID}" 2>/dev/null
-    SCAN_TSHARK_PID=""
+    # Clean up the CSV (and any airodump sibling files) for this session
+    [[ -n "${SCAN_CSV_PREFIX}" ]] && rm -f "${SCAN_CSV_PREFIX}"-*
+    SCAN_CSV_PREFIX=""
 }
 
-# Re-parse the full fields file each refresh (simple and robust — files
-# stay small for a scan session measured in tens of seconds to a couple
-# minutes).
+# Parses the AP block of an airodump-ng CSV (--output-format csv) into
+# "bssid<US>ssid<US>channel<US>privacy<US>auth<US>power" rows (\037 unit
+# separator — see the note below on why not tab), stopping at the blank
+# line that separates the AP table from the station table. airodump-ng
+# writes CRLF line endings and ", " (comma-space) field separators.
+_scan_parse_airodump_csv() {
+    local csv_file="$1"
+    [[ -s "${csv_file}" ]] || return 0
+
+    awk -F', ' '
+        function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+        { sub(/\r$/, "") }
+        /^BSSID/ { in_ap = 1; next }
+        /^Station MAC/ { in_ap = 0 }
+        !NF { in_ap = 0 }
+        in_ap && NF >= 14 {
+            bssid = trim($1)
+            if (bssid !~ /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/) next
+            channel = trim($4)
+            privacy = trim($6)
+            auth    = trim($8)
+            power   = trim($9)
+            essid   = trim($14)
+            # Use \037 (unit separator) rather than a tab: tab is an IFS
+            # whitespace char, so bash'"'"'s "read" squeezes consecutive
+            # tabs and misaligns rows with an empty field (hidden SSIDs).
+            printf "%s\037%s\037%s\037%s\037%s\037%s\n", bssid, essid, channel, privacy, auth, power
+        }
+    ' "${csv_file}"
+}
+
+# Re-parse the full CSV file each refresh (simple and robust — files stay
+# small for a scan session measured in tens of seconds to a couple minutes).
 _scan_refresh_data() {
     SCAN_AP_INFO=()
 
-    [[ -s "${SCAN_FIELDS_FILE}" ]] || return 0
+    local csv_file="${SCAN_CSV_PREFIX}-01.csv"
+    [[ -s "${csv_file}" ]] || return 0
 
-    while IFS=$'\t' read -r bssid ssid signal channel privacy rsn_akms rsn_akm_oui rsn_akm_type; do
+    while IFS=$'\037' read -r bssid essid channel privacy auth power; do
         [[ -z "${bssid}" ]] && continue
 
         local decoded_ssid
-        decoded_ssid="$(_scan_decode_ssid "${ssid}")"
+        decoded_ssid="$(_scan_decode_ssid "${essid}")"
         [[ -z "${decoded_ssid}" ]] && continue
 
         local security
-        security="$(_scan_classify_security "${privacy}" "${rsn_akms}" "${rsn_akm_oui}" "${rsn_akm_type}")"
-        SCAN_AP_INFO["${bssid}"]="${decoded_ssid}|${channel:-?}|${security}|${signal:-N/A}"
-    done < "${SCAN_FIELDS_FILE}"
+        security="$(_scan_classify_security "${privacy}" "${auth}")"
+        SCAN_AP_INFO["${bssid}"]="${decoded_ssid}|${channel:-?}|${security}|${power:-N/A}"
+    done < <(_scan_parse_airodump_csv "${csv_file}")
 }
 
 scan_render_table() {
@@ -290,23 +287,22 @@ scan_table_row_for_label() {
     return 1
 }
 
-# Runs monitor mode + channel hopper + tshark beacon capture for
-# `duration` seconds with no live rendering, then restores managed mode.
-# Populates SCAN_AP_INFO on success. Universal — used by every non-live
-# scan consumer (the quick interactive clone picker, explicit --clone
-# "SSID" resolution, and the standalone --scan-aps survey).
+# Runs monitor mode + an airodump-ng beacon capture for `duration` seconds
+# with no live rendering, then restores managed mode. Populates
+# SCAN_AP_INFO on success. Universal — used by every non-live scan
+# consumer (the quick interactive clone picker, explicit --clone "SSID"
+# resolution, and the standalone --scan-aps survey).
 scan_run_background() {
     local iface="$1"
     local duration="$2"
 
-    command -v tshark >/dev/null || {
-        warn "tshark not installed; cannot run a scan."
+    command -v airodump-ng >/dev/null || {
+        warn "airodump-ng not installed; cannot run a scan."
         return 1
     }
 
     _scan_enter_monitor_mode "${iface}" || return 1
 
-    _scan_start_hopper "${iface}"
     if ! _scan_start_capture "${iface}"; then
         _scan_stop_background
         _scan_exit_monitor_mode "${iface}"
@@ -331,26 +327,25 @@ scan_run_background() {
     return 0
 }
 
-# Live, continuously-updating scan: enters monitor mode, hops channels,
-# captures beacons, and re-renders scan_render_table roughly once per
-# second until any key is pressed, then restores managed mode. Universal
-# — used by the live clone picker and the standalone --scan-aps survey;
-# any future feature that wants a live nearby-AP view can call this
-# directly. Populates SCAN_AP_INFO; callers should call
+# Live, continuously-updating scan: enters monitor mode, runs airodump-ng
+# (which hops channels itself), and re-renders scan_render_table roughly
+# once per second until any key is pressed, then restores managed mode.
+# Universal — used by the live clone picker and the standalone --scan-aps
+# survey; any future feature that wants a live nearby-AP view can call
+# this directly. Populates SCAN_AP_INFO; callers should call
 # scan_build_sorted_table afterward to consume the result.
 scan_run_live() {
     local iface="$1"
     local header="${2:-Live AP scan — press any key to stop}"
 
-    command -v tshark >/dev/null || {
-        warn "tshark not installed; cannot run a live scan."
+    command -v airodump-ng >/dev/null || {
+        warn "airodump-ng not installed; cannot run a live scan."
         return 1
     }
 
     log "Switching ${iface} to monitor mode for live scan..."
     _scan_enter_monitor_mode "${iface}" || return 1
 
-    _scan_start_hopper "${iface}"
     if ! _scan_start_capture "${iface}"; then
         _scan_stop_background
         _scan_exit_monitor_mode "${iface}"
@@ -365,7 +360,7 @@ scan_run_live() {
         _scan_refresh_data
         scan_render_table "${header}"
         # 1s refresh interval, doubling as the keypress poll
-        if read -r -t 1 -n 1 -s key; then
+        if read -r -t 0.2 -n 1 -s key; then
             break
         fi
     done
@@ -388,8 +383,8 @@ scan_show_nearby_aps() {
         warn "Ethernet AP mode has no radio to scan with."
         return 1
     fi
-    command -v tshark >/dev/null || {
-        warn "tshark not installed; cannot scan for nearby access points."
+    command -v airodump-ng >/dev/null || {
+        warn "airodump-ng not installed; cannot scan for nearby access points."
         return 1
     }
 
@@ -471,8 +466,8 @@ _scan_apply_clone_selection() {
 # of nearby APs until any key is pressed, then lets the user pick one.
 configure_clone_live_scan() {
     [[ "${DEFAULTS[ETHERNET_MODE]}" == true ]] && return 1
-    command -v tshark >/dev/null || {
-        warn "tshark not installed; falling back to standard clone selection."
+    command -v airodump-ng >/dev/null || {
+        warn "airodump-ng not installed; falling back to standard clone selection."
         return 1
     }
 

@@ -116,8 +116,8 @@ jobs:
             printf 'Installed-Size: %s\n' "$SIZE_KB"
             printf 'Maintainer: DilshanHarshajith <dilshan@example.com>\n'
             printf 'Depends: bash (>= 4.0), hostapd, dnsmasq, wireless-tools, net-tools, iptables, iproute2\n'
-            printf 'Recommends: wireshark-common, redsocks, mitmproxy\n'
-            printf 'Suggests: tshark, aircrack-ng\n'
+            printf 'Recommends: aircrack-ng, wireshark-common, redsocks, mitmproxy\n'
+            printf 'Suggests: tshark\n'
             printf 'Homepage: https://github.com/${{ github.repository }}\n'
             printf 'Description: Wireless access point creator with advanced features\n'
             printf ' GhostAP creates wireless APs with internet sharing, packet capture,\n'

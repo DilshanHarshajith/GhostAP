@@ -40,8 +40,11 @@ sudo apt install hostapd dnsmasq wireless-tools net-tools iptables iproute2
 ### Optional Dependencies
 
 ```bash
-# For packet capture, AP cloning discovery, and AP scanning (--scan-aps)
+# For packet capture
 sudo apt install wireshark-common
+
+# For AP cloning discovery and AP scanning (--scan-aps)
+sudo apt install aircrack-ng
 
 # For proxy routing
 sudo apt install redsocks
@@ -54,7 +57,7 @@ sudo apt install mitmproxy
 ```
 
 > [!NOTE]
-> AP cloning discovery and `--scan-aps` briefly switch the wireless interface into monitor mode to capture beacon frames, which requires both `tshark` and a driver/adapter that supports monitor mode (`iw list` → check for `monitor` under "Supported interface modes").
+> AP cloning discovery and `--scan-aps` briefly switch the wireless interface into monitor mode to capture beacon frames, which requires both `airodump-ng` (from `aircrack-ng`) and a driver/adapter that supports monitor mode (`iw list` → check for `monitor` under "Supported interface modes").
 
 ## Installation
 
@@ -348,14 +351,14 @@ CAPTIVE_TEMPLATE=""
 
 ### AP Scanning & Clone Discovery
 
-GhostAP discovers nearby access points by briefly switching the wireless interface into monitor mode, hopping across channels, and capturing beacon frames with `tshark` — rather than relying on a cached network list. This is used both for AP cloning and for the standalone `--scan-aps` survey.
+GhostAP discovers nearby access points by briefly switching the wireless interface into monitor mode and capturing beacon frames with `airodump-ng` (channel hopping is handled by airodump-ng itself, restricted to the same channel set GhostAP scans) — rather than relying on a cached network list. This is used both for AP cloning and for the standalone `--scan-aps` survey.
 
 **What's captured per AP:**
 
 - **BSSID** — exact MAC address, so networks sharing an SSID can be told apart
-- **SSID** — decoded from raw bytes, including hex-encoded/non-ASCII SSIDs
+- **SSID** — read directly from airodump-ng's CSV output (blank for hidden networks)
 - **Channel** and **signal strength** (dBm)
-- **Security** — classified as open/WPA2/WPA3 from the actual RSN/AKM fields in the beacon, not guessed from the privacy bit alone
+- **Security** — classified as open/WPA2/WPA3 from airodump-ng's Privacy/Authentication columns (e.g. `SAE` → WPA3), not guessed from the privacy bit alone
 
 **Two scan modes:**
 
@@ -523,7 +526,7 @@ GhostAP/
     ├── config.sh        # Configuration management and argument parsing
     ├── ui.sh            # User interface and status display
     ├── interface.sh     # Wireless interface management, AP cloning flow
-    ├── scan.sh          # Monitor-mode AP scanning (clone discovery, --scan-aps)
+    ├── scan.sh          # Monitor-mode AP scanning via airodump-ng (clone discovery, --scan-aps)
     ├── vpn.sh           # VPN routing (OpenVPN/WireGuard/existing interface)
     ├── hostapd.sh       # Access point configuration
     ├── dnsmasq.sh       # DHCP/DNS server and spoofing
@@ -546,7 +549,8 @@ tail -f Logs/GhostAP.log
 
 - `Logs/hostapd.log` - Access point service logs
 - `Logs/dnsmasq.log` - DHCP/DNS service logs
-- `Logs/tshark.log` - Packet capture and AP scanning (cloning/`--scan-aps`) logs
+- `Logs/tshark.log` - Packet capture logs
+- `Logs/airodump.log` - AP scanning (cloning/`--scan-aps`) logs
 - `Logs/redsocks.log` - Proxy service logs (when applicable)
 - `Logs/captive.log` - Captive portal server logs (when applicable)
 
@@ -593,10 +597,10 @@ journalctl -u dnsmasq
 
 #### Scan / Clone Discovery Shows No APs
 
-- Verify `tshark` is installed and either running as root or has `cap_net_raw,cap_net_admin` capabilities set.
+- Verify `airodump-ng` (part of `aircrack-ng`) is installed and either running as root or the adapter/driver otherwise permits monitor-mode capture.
 - Confirm the wireless adapter/driver supports monitor mode: `iw list` and check for `monitor` under "Supported interface modes".
 - Some drivers need a brief settle time after switching to monitor mode. The quick picker and `--clone "SSID"` use a fixed ~10s window; if that's not enough, try the live scan instead (`--int --clone`, or `--int --scan-aps`) and let it run longer before pressing a key.
-- Check `Logs/tshark.log` for capture errors.
+- Check `Logs/airodump.log` for capture errors.
 
 ### Debug Mode
 

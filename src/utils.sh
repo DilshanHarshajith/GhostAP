@@ -102,7 +102,7 @@ check_root() {
 
 check_dependencies() {
     local deps=(hostapd dnsmasq iw iptables ip)
-    local optional_deps=(tshark redsocks python3)
+    local optional_deps=(tshark airodump-ng redsocks python3)
 
     # If VPN is configured, check for the required client upfront
     if [[ "${DEFAULTS[VPN_ROUTING]}" == true ]]; then
@@ -143,6 +143,7 @@ check_dependencies() {
         for m in "${missing_optional[@]}"; do
             case "$m" in
                 tshark) opt_packages+=" tshark" ;;
+                airodump-ng) opt_packages+=" aircrack-ng" ;;
                 wg-quick) opt_packages+=" wireguard-tools" ;;
                 *) opt_packages+=" $m" ;;
             esac
