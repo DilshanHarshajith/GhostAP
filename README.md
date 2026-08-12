@@ -12,15 +12,10 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 - **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
 - **Packet Capture**: Real-time traffic monitoring and PCAP export with tshark
 - **DNS Spoofing**: Redirect specific domains to custom IP addresses
-- **DoH Blocking**: Block DNS-over-HTTPS to enforce DNS spoofing
 - **Captive Portal**: Intercept clients with a customizable portal page; credentials are captured and clients are whitelisted on acceptance
 - **Proxy Integration**: Tool-agnostic support for local transparent proxies, redsocks (upstream), and remote DNAT
 - **VPN Routing**: Securely route all AP traffic through OpenVPN, WireGuard, or a pre-configured VPN interface
-- **VPN Kill Switch**: Prevent traffic leaks with a built-in firewall kill switch
-- **Intercept Traffic**: Easily bridge traffic to tools like `mitmproxy`, `Burp Suite`, or `Wireshark`
-- **Interactive & CLI Modes**: Flexible configuration options
 - **Configuration Management**: Save and load configurations with CLI argument overrides
-- **Comprehensive Logging**: Detailed operation logs for all services
 
 ## Requirements
 
