@@ -31,6 +31,7 @@ declare -g HOSTAPD_LOG="${LOG_DIR}/hostapd.log"
 declare -g DNSMASQ_LOG="${LOG_DIR}/dnsmasq.log"
 declare -g REDSOCKS_LOG="${LOG_DIR}/redsocks.log"
 declare -g TSHARK_LOG="${LOG_DIR}/tshark.log"
+declare -g AIRODUMP_LOG="${LOG_DIR}/airodump.log"
 
 # SSLKeylog file
 declare -g SSLKEYLOGFILE="${OUT_DIR}/sslkey.log"
@@ -105,6 +106,10 @@ declare -A ARG
 declare -g INTERACTIVE_MODE=false
 declare -g SAVE_CONFIG=false
 declare -g CONFIG_FILE="${SETUP_DIR}/default.conf"
+
+# --scan-aps: one-shot standalone AP survey, not a saved config setting
+declare -g SCAN_APS_ONLY=false
+declare -g SCAN_APS_DURATION=15
 
 # Packet Capture Globals
 declare -g CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
