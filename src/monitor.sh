@@ -82,11 +82,16 @@ _mon_fetch_stations() {
     fi
 
     # Fallback: query the kernel directly — works whenever the
-    # interface is an AP, no control socket required.
+    # interface is an AP, no control socket required. Success is judged by
+    # iw's exit status, not by non-empty output: a healthy AP with zero
+    # associated stations prints nothing but exits 0, and that still means
+    # "a radio source exists" — otherwise the empty dump below would be
+    # mistaken for "no radio capability" and stale leases would keep dead
+    # clients armed forever (see _mon_armed).
     if command -v iw >/dev/null 2>&1; then
         local iw_raw
         iw_raw=$(iw dev "${iface}" station dump 2>/dev/null)
-        if [[ -n "${iw_raw}" ]]; then
+        if (( $? == 0 )); then
             MON_RADIO_SOURCE="iw"
             _mon_parse_iw_sta "${iw_raw}"
             return 0
@@ -262,24 +267,28 @@ _mon_merge_record() {
     printf '%s|%s|%s|%s|%s|%s' "${ip}" "${hostname}" "${signal}" "${ctime}" "${rxb}" "${txb}"
 }
 
-# Is a MAC "armed" (actively connected) this tick? True when it is on
-# the radio, or when it has an online ARP entry. When no radio source is
-# available at all (ethernet AP mode, or hostapd/iw both failed),
-# presence via lease/ARP counts as armed so the dashboard still works.
+# Is a MAC "armed" (actively connected) this tick? True when it is on the
+# radio. When no radio source exists at all (ethernet AP mode, or
+# hostapd/iw both unavailable), an online ARP entry — or any lease/ARP
+# presence — counts as armed so the dashboard still works there.
+#
+# The radio is the source of truth whenever one is available: once a WiFi
+# client deauthenticates it leaves `iw station dump`/hostapd, so a device
+# that only lingers as a stale DHCP lease must NOT count as armed — that
+# is what lets the offline grace window eventually purge it.
 _mon_armed() {
     local mac="$1"
 
     [[ -n "${MON_STA[${mac}]:-}" ]] && return 0
 
-    local lookup
-    for lookup in "${!MON_NEIGH_MAC[@]}"; do
-        if [[ "${MON_NEIGH_MAC[${lookup}]}" == "${mac}" ]] &&
-           _mon_neigh_state_online "${MON_NEIGH[${lookup}]}"; then
-            return 0
-        fi
-    done
-
     if [[ "${DEFAULTS[ETHERNET_MODE]}" == true || -z "${MON_RADIO_SOURCE}" ]]; then
+        local lookup
+        for lookup in "${!MON_NEIGH_MAC[@]}"; do
+            if [[ "${MON_NEIGH_MAC[${lookup}]}" == "${mac}" ]] &&
+               _mon_neigh_state_online "${MON_NEIGH[${lookup}]}"; then
+                return 0
+            fi
+        done
         return 0
     fi
     return 1
@@ -440,6 +449,14 @@ _mon_truncate() {
     fi
 }
 
+# Header row for the client table — built with the same printf widths as
+# the data rows below so the columns always line up (a hard-coded literal
+# drifted out of alignment with the %-17s/%-15s/... row format).
+_mon_header() {
+    printf '%-17s %-15s %-15s %8s %9s %10s %-7s' \
+        MAC IP Hostname Signal Connected RX/TX Status
+}
+
 # Build the display lines into a caller-named array. Rows are sorted by
 # signal strength (unknown sinks to the bottom, reusing scan.sh's
 # SCAN_SIGNAL_UNKNOWN sentinel and tab-prefix numeric-sort idiom).
@@ -449,7 +466,7 @@ _mon_build_lines() {
     _out=()
     _out+=("GhostAP Live Monitor — ${DEFAULTS[INTERFACE]}  SSID:\"${DEFAULTS[SSID]:-}\"  CH:${DEFAULTS[CHANNEL]:-}  Clients:${#MONITOR_CLIENTS[@]}   $(date '+%H:%M:%S')")
     _out+=("--------------------------------------------------------------------------------")
-    _out+=("MAC                IP                 Hostname          Signal    Connected     RX/TX        Status")
+    _out+=("$(_mon_header)")
     _out+=("--------------------------------------------------------------------------------")
 
     if (( ${#MONITOR_CLIENTS[@]} == 0 )); then
@@ -554,7 +571,7 @@ monitor_snapshot() {
 
     echo "Connected clients (snapshot) — ${iface}" >&2
     echo "--------------------------------------------------------------------------------" >&2
-    echo "MAC                IP                 Hostname          Signal    Connected     RX/TX        Status" >&2
+    echo "$(_mon_header)" >&2
     echo "--------------------------------------------------------------------------------" >&2
     if (( ${#sorted[@]} == 0 )); then
         echo "(no clients connected)" >&2
