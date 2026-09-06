@@ -17,7 +17,7 @@ if [[ -d "${SRC_DIR}" ]]; then
     source "${SRC_DIR}/globals.sh" || { echo "Failed to load globals.sh"; exit 1; }
     
     # Source other modules
-    for module in utils network config ui interface vpn hostapd dnsmasq internet proxy capture captive services; do
+    for module in utils network config ui interface scan vpn hostapd dnsmasq internet proxy capture captive services; do
         if [[ -f "${SRC_DIR}/${module}.sh" ]]; then
             source "${SRC_DIR}/${module}.sh" || { echo "Failed to load ${module}.sh"; exit 1; }
         else
@@ -50,6 +50,12 @@ main() {
     [[ -n "${CONFIG_FILE}" ]] && load_config
     
     configure_interface
+
+    if [[ "${SCAN_APS_ONLY}" == true ]]; then
+        scan_show_nearby_aps
+        exit $?
+    fi
+
     configure_clone
     configure_hostapd
     configure_mac_in_interactive
