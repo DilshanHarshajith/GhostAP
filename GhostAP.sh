@@ -17,7 +17,7 @@ if [[ -d "${SRC_DIR}" ]]; then
     source "${SRC_DIR}/globals.sh" || { echo "Failed to load globals.sh"; exit 1; }
     
     # Source other modules
-    for module in utils network config ui interface scan vpn hostapd dnsmasq internet proxy capture captive services; do
+    for module in utils network config ui interface scan monitor vpn hostapd dnsmasq internet proxy capture captive services; do
         if [[ -f "${SRC_DIR}/${module}.sh" ]]; then
             source "${SRC_DIR}/${module}.sh" || { echo "Failed to load ${module}.sh"; exit 1; }
         else
@@ -75,27 +75,19 @@ main() {
     show_status
 
     log "Entering main loop, waiting for signals..."
-    local dhcp_lease_file="${TMP_DIR}/dhcp.leases"
-    local last_lease_chksum=""
-    
+
     while true; do
-        sleep 5
-        
-        # Check processes
+        sleep "${MONITOR_INTERVAL}"
+
+        # Check processes (PIDS is non-empty once hostapd/dnsmasq have started)
         for process_pid in "${PIDS[@]}"; do
             if [[ -n "${process_pid}" ]] && ! kill -0 "${process_pid}" 2>/dev/null; then
                 warn "Process ${process_pid} died unexpectedly"
             fi
         done
-        
-        # Monitor Connected Devices
-        if [[ -f "${dhcp_lease_file}" ]]; then
-             local current_chksum=$(md5sum "${dhcp_lease_file}" | awk '{print $1}')
-             if [[ "${current_chksum}" != "${last_lease_chksum}" ]]; then
-                last_lease_chksum="${current_chksum}"
-                show_connected_clients
-             fi
-        fi
+
+        # Always-on live client dashboard — joins/leaves + in-place redraw on TTY.
+        monitor_tick
     done
 }
 
