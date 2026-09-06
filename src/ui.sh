@@ -249,38 +249,7 @@ EOF
 }
 
 show_connected_clients() {
-    local lease_file="${TMP_DIR}/dhcp.leases"
-    
-    echo
-    echo "=========================================="
-    echo "           Connected Devices              "
-    echo "=========================================="
-    
-    if [[ ! -f "${lease_file}" ]]; then
-        echo "Waiting for connections..."
-        return
-    fi
-    
-    # Check if file is empty
-    if [[ ! -s "${lease_file}" ]]; then
-        echo "No devices connected yet."
-        return
-    fi
-    
-    printf "%-20s %-15s %-20s\n" "MAC Address" "IP Address" "Hostname"
-    echo "--------------------------------------------------------"
-    
-    while read -r line; do
-        # dnsmasq lease format: time mac ip hostname client_id
-        local mac=$(echo "$line" | awk '{print $2}')
-        local ip=$(echo "$line" | awk '{print $3}')
-        local hostname=$(echo "$line" | awk '{print $4}')
-        
-        if [[ "${hostname}" == "*" ]]; then
-            hostname="Unknown"
-        fi
-        
-        printf "%-20s %-15s %-20s\n" "${mac}" "${ip}" "${hostname}"
-    done < "${lease_file}"
-    echo "=========================================="
+    # Backward-compat alias — some external callers use this name.
+    # Delegates to the full snapshot (radio + leases + ARP, signal-sorted).
+    monitor_snapshot
 }
