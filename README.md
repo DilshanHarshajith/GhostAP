@@ -6,7 +6,8 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 
 - **Wireless Access Point Creation**: Set up secure (WPA2/WPA3) or open WiFi networks
 - **Ethernet AP Mode**: Route traffic through downstream hardware without hostapd — works with a downstream router/AP, or a single PC plugged in directly via a straight ethernet cable
-- **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration
+- **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration. Interactive discovery uses airodump-ng to pick a target from a live or quick scan
+- **AP Scanning**: Standalone nearby-AP survey with airodump-ng — fixed-duration snapshot or live table, sorted by signal
 - **Internet Sharing**: Share internet connection from another interface via NAT
 - **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
 - **Packet Capture**: Real-time traffic monitoring and PCAP export with tshark
@@ -41,6 +42,9 @@ sudo apt install hostapd dnsmasq wireless-tools net-tools iptables iproute2
 ```bash
 # For packet capture
 sudo apt install wireshark-common
+
+# For AP scanning & clone discovery (airodump-ng)
+sudo apt install aircrack-ng
 
 # For proxy routing
 sudo apt install redsocks
@@ -128,6 +132,34 @@ sudo ./GhostAP.sh -i wlan0 -s "ProxyAP" --proxy --proxy-host 127.0.0.1 --proxy-p
 sudo ./GhostAP.sh -i wlan0 --clone "Target_SSID"
 ```
 
+With no SSID, GhostAP runs an airodump-ng scan to help you pick a target
+interactively:
+
+```bash
+sudo ./GhostAP.sh -i wlan0 --int --clone
+# Choose: live scan (table updates every second until a keypress) or
+#         quick scan (10s fixed duration). Pick the AP from the table.
+```
+
+#### Scan Nearby Access Points
+
+`--scan-aps` runs airodump-ng on a wireless interface and prints a sorted
+table of nearby APs (SSID, BSSID, channel, security, signal). It does not
+start hostapd, so the radio is left in managed mode on exit. Requires
+`aircrack-ng` (which provides `airodump-ng`).
+
+```bash
+# Fixed-duration scan, then print a single sorted table
+sudo ./GhostAP.sh -i wlan0 --scan-aps 20
+
+# Live scan — table refreshes every second, any keypress stops it
+sudo ./GhostAP.sh -i wlan0 --int --scan-aps
+```
+
+> [!IMPORTANT]
+> Only run `--scan-aps` and `--clone` against networks and devices you own
+> or are explicitly authorized to test.
+
 #### Ethernet AP Mode (Downstream Router as Radio, or a Directly Connected PC)
 
 `--eth-ap` skips hostapd and manages DHCP/NAT/features directly on an ethernet
@@ -199,7 +231,6 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 | `--vpn [CONFIG]`                | Enable VPN routing (optional .ovpn/.conf) |
 | `--vpn-interface IFACE`         | Use an existing VPN interface             |
 | `--vpn-creds USER:PASS`         | OpenVPN credentials (non-interactive)     |
-| `--clone SSID`                  | Clone an existing AP by SSID              |
 
 ### Network Options
 
@@ -215,13 +246,15 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 
 ### Feature Options
 
-| Option              | Description                                                         |
-| ------------------- | ------------------------------------------------------------------- |
-| `--internet`        | Enable internet sharing                                             |
-| `--capture [FILE]`  | Enable packet capture                                               |
-| `--spoof "DOMAINS"` | Enable DNS spoofing (Format: `dom.com=1.2.3.4\|dom2.com\|...`)      |
-| `--spoof-target IP` | Default target IP for DNS spoofing (when domain has no explicit IP) |
-| `--block-doh`       | Block DNS-over-HTTPS to enforce DNS spoofing                        |
+| Option                | Description                                                         |
+| --------------------- | ------------------------------------------------------------------- |
+| `--internet`          | Enable internet sharing                                             |
+| `--capture [FILE]`    | Enable packet capture                                               |
+| `--clone [SSID]`      | Clone an existing AP by SSID. With no SSID, runs an airodump scan to pick a target |
+| `--scan-aps [SECS]`   | Scan nearby access points with airodump-ng and print a sorted table |
+| `--spoof "DOMAINS"`   | Enable DNS spoofing (Format: `dom.com=1.2.3.4\|dom2.com\|...`)      |
+| `--spoof-target IP`   | Default target IP for DNS spoofing (when domain has no explicit IP) |
+| `--block-doh`         | Block DNS-over-HTTPS to enforce DNS spoofing                        |
 
 ### Proxy Options
 
@@ -467,6 +500,7 @@ GhostAP/
     ├── config.sh        # Configuration management and argument parsing
     ├── ui.sh            # User interface and status display
     ├── interface.sh     # Wireless interface management
+    ├── scan.sh          # AP scanning with airodump-ng (clone discovery, --scan-aps)
     ├── hostapd.sh       # Access point configuration
     ├── dnsmasq.sh       # DHCP/DNS server and spoofing
     ├── internet.sh      # NAT and internet sharing
@@ -489,6 +523,7 @@ tail -f Logs/GhostAP.log
 - `Logs/hostapd.log` - Access point service logs
 - `Logs/dnsmasq.log` - DHCP/DNS service logs
 - `Logs/tshark.log` - Packet capture logs
+- `Logs/airodump.log` - AP scan logs (`--scan-aps`, clone discovery)
 - `Logs/redsocks.log` - Proxy service logs (when applicable)
 - `Logs/captive.log` - Captive portal server logs (when applicable)
 
