@@ -122,11 +122,25 @@ Network Options:
 Feature Options:
   --internet                    Enable internet sharing
   --capture [FILE]              Enable packet capture (optional output path)
-  --clone [SSID]                Clone an existing AP by SSID
+  --clone [SSID]                Clone an existing AP by SSID. With no SSID given, runs
+                                a live + quick scan to pick a target interactively.
+                                Wireless mode only.
   --spoof [DOMAINS]             Enable DNS spoofing
                                 Domains format: domain.com=1.2.3.4|domain2.com=10.0.0.1
   --spoof-target IP             Default target IP for domains without explicit IP
   --block-doh                   Block DNS-over-HTTPS to enforce DNS spoofing
+
+Scan Options:
+  --scan-aps [SECONDS]          Scan nearby access points using airodump-ng and print a
+                                sorted table (SSID, BSSID, channel, security, signal).
+                                With an integer argument, scans for that many seconds and
+                                prints a single sorted snapshot. Without it (or with
+                                --int), runs a live table that updates every second until
+                                any keypress. Wireless mode only. Requires airodump-ng
+                                (part of the aircrack-ng package). Does not start hostapd,
+                                so the radio is left in managed mode on exit.
+                                Only use against networks/devices you own or are
+                                explicitly authorized to test.
 
 Captive Portal Options:
   --captive                     Enable captive portal (intercepts clients until they submit)
@@ -169,6 +183,15 @@ Examples:
 
   # Clone an existing access point
   sudo $0 -i wlan0 --clone "TargetSSID"
+
+  # Interactive clone — pick a target from a live airodump scan
+  sudo $0 -i wlan0 --int --clone
+
+  # Scan nearby access points (20s fixed scan, then sorted table)
+  sudo $0 -i wlan0 --scan-aps 20
+
+  # Live AP scan — table refreshes every second, any key stops
+  sudo $0 -i wlan0 --int --scan-aps
 
   # Captive portal with built-in page and internet sharing
   sudo $0 -i wlan0 -s "FreeWifi" --security open --captive --internet -si eth0
