@@ -111,6 +111,41 @@ declare -g CONFIG_FILE="${SETUP_DIR}/default.conf"
 declare -g SCAN_APS_ONLY=false
 declare -g SCAN_APS_DURATION=15
 
+# Connected-client monitor (see src/monitor.sh). These are runtime knobs,
+# not saved-config settings — they describe how the live client dashboard
+# behaves while the AP is running.
+# Refresh cadence for the live client dashboard (seconds). 2s keeps signal
+# freshness without the fork cost of scanning every second.
+declare -g MONITOR_INTERVAL=2
+# Consecutive ticks a client can vanish from the radio + ARP before it is
+# declared gone. Guards against flapping on transient hostapd/ARP hiccups.
+declare -g MON_OFFLINE_THRESHOLD=3
+
+# Radio source currently in use for station data: "hostapd" | "iw" | "".
+# Set once by monitor.sh; not a knob.
+declare -g MON_RADIO_SOURCE=""
+
+# Snapshot maps, rebuilt every tick. Keyed by lowercase colon MAC.
+declare -g -A MON_STA=()        # mac -> "signal|connected_time|rx|tx"   (from hostapd/iw)
+declare -g -A MON_LEASE=()      # mac -> "ip|hostname"                    (from dnsmasq leases)
+declare -g -A MON_IP2MAC=()     # ip  -> mac                              (reverse lease lookup)
+declare -g -A MON_NEIGH=()      # ip  -> "state"                          (from ip neigh)
+declare -g -A MON_NEIGH_MAC=()  # ip  -> mac
+
+# Persistent per-client state across ticks: mac -> "ip|hostname|signal|connected_time|rx|tx|status"
+declare -g -A MONITOR_CLIENTS=()
+# Consecutive miss counters per mac (grace window for LEAVING).
+declare -g -A MON_ARP_MISSES=()
+# MACs seen at least once, so joins can be told apart from first render.
+declare -g -A MON_SEEN_MACS=()
+
+# Ring buffer of recent join/leave events rendered under the live table.
+declare -g -a MONITOR_EVENTS=()
+declare -g MON_SEEN_MACS_COUNT=0
+
+# Lines written by the last monitor render (for in-place tput redraw).
+declare -g MONITOR_RENDER_LINES=0
+
 # Packet Capture Globals
 declare -g CAPTURE_FILE="${DEFAULTS[CAPTURE_FILE]}"
 declare -g TMP_CAPTURE=""

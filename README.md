@@ -9,7 +9,7 @@ A comprehensive Bash script for creating wireless access points with advanced fe
 - **AP Cloning**: Quickly clone existing networks by SSID with automatic configuration. Interactive discovery uses airodump-ng to pick a target from a live or quick scan
 - **AP Scanning**: Standalone nearby-AP survey with airodump-ng — fixed-duration snapshot or live table, sorted by signal
 - **Internet Sharing**: Share internet connection from another interface via NAT
-- **Real-time Client Monitoring**: Track connected devices with MAC, IP, and hostname
+- **Real-time Client Monitoring**: Always-on live dashboard while the AP runs — joins/leaves, signal strength, connection time, and accurate online/offline state (no stale lease ghosts)
 - **Packet Capture**: Real-time traffic monitoring and PCAP export with tshark
 - **DNS Spoofing**: Redirect specific domains to custom IP addresses
 - **DoH Blocking**: Block DNS-over-HTTPS to enforce DNS spoofing
@@ -423,11 +423,15 @@ sudo ./GhostAP.sh --remote-proxy --proxy-host 10.0.0.10 --proxy-port 8080
 
 ### Connected Devices Monitoring
 
-The script monitors connected clients in real-time by watching DHCP leases. It displays:
+When the AP is running, the main loop refreshes a live client dashboard every 2 s (`MONITOR_INTERVAL`) on the terminal. Data is joined from hostapd/iw station tables + dnsmasq leases + `ip neigh` ARP, so a device that drops without sending `DHCPRELEASE` stops being listed instead of lingering as a stale ghost. The dashboard overwrites itself in place (scroll-free), and joins/leaves are emitted to the log:
 
-- MAC Address
-- Assigned IP Address
-- Device Hostname (if available)
+- `MAC` · `IP` · `Hostname` (as sent in DHCP) — `*` shows as `Unknown`
+- `Signal` — dBm when the radio is available (`N/A` in Ethernet AP mode), rows sorted strongest-first
+- `Connected` — associated time (`hh:mm:ss`, or `N/A`)
+- `RX/TX` — cumulative bytes seen by the radio
+- `Status` — `Online` / `Leaving` (in grace window) — a client that fails both the radio and ARP checks for 3 consecutive ticks (`MON_OFFLINE_THRESHOLD`) is declared `left` and removed
+
+When the AP runs piped/non-interactively, only the `join`/`leave` events are logged — no terminal table is printed. `show_connected_clients` is kept as an alias for `monitor_snapshot` (one-shot table) for scripting and backward compatibility. Only use against clients/devices you own or are explicitly authorized to test.
 
 ### VPN Routing
 
@@ -501,6 +505,7 @@ GhostAP/
     ├── ui.sh            # User interface and status display
     ├── interface.sh     # Wireless interface management
     ├── scan.sh          # AP scanning with airodump-ng (clone discovery, --scan-aps)
+    ├── monitor.sh       # Live client dashboard — joined hostapd/iw + leases + ARP (no monitor mode)
     ├── hostapd.sh       # Access point configuration
     ├── dnsmasq.sh       # DHCP/DNS server and spoofing
     ├── internet.sh      # NAT and internet sharing
