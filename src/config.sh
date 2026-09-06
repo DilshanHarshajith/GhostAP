@@ -253,6 +253,18 @@ parse_arguments() {
                     shift
                 fi
                 ;;
+            --scan-aps)
+                # Standalone AP survey: scan, print nearby APs, exit.
+                # No cloning, no AP setup. Accepts an optional duration
+                # in seconds (defaults to SCAN_APS_DURATION in globals.sh).
+                SCAN_APS_ONLY=true
+                if [[ -n "${2:-}" && "$2" =~ ^[0-9]+$ ]]; then
+                    SCAN_APS_DURATION="$2"
+                    shift 2
+                else
+                    shift
+                fi
+                ;;
             --local-proxy)
                 DEFAULTS[PROXY_MODE]="TRANSPARENT_LOCAL"
                 DEFAULTS[PROXY_ENABLED]=true
