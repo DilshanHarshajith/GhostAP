@@ -87,6 +87,40 @@ sudo apt install mitmproxy
    sudo ghostap
    ```
 
+## Web GUI
+
+GhostAP ships with an optional local web interface for configuring and
+supervising the access point from a browser. It is dependency-free (Python
+standard library only) and wraps `GhostAP.sh` rather than reimplementing it.
+
+```bash
+# From the project root — the AP needs root, so the GUI runs as root too
+sudo ./GhostAP.sh --web      # or: sudo ./gui/run.sh
+# then open http://127.0.0.1:8787/
+```
+
+The server binds to `127.0.0.1` by default (not reachable off-host). Use
+`--port` / `--host` to change it:
+
+```bash
+sudo ./gui/run.sh --port 9000
+```
+
+The GUI lets you:
+
+- Configure WiFi or Ethernet AP mode, security, subnet/DNS, and MAC
+- Toggle internet sharing, packet capture, DNS spoofing, proxy routing, VPN,
+  and captive portal
+- Start/stop the AP and watch the live log stream
+- View connected clients (radio + DHCP leases + ARP)
+- Scan nearby APs and one-click set a clone target
+- Save/load/delete setups — the same `Setups/` files used by `--config`/`--save`
+
+> [!NOTE]
+> The GUI is a control surface for the Bash script. Stopping the AP from the
+> GUI sends `SIGINT` to the running `GhostAP.sh`, triggering the same cleanup
+> path as `Ctrl+C`.
+
 ## Usage
 
 ### Interactive Mode (Recommended for beginners)
@@ -217,6 +251,7 @@ sudo ./GhostAP.sh -i wlan0 -s "VPNAccess" --vpn-interface tun0
 | Option                 | Description                          |
 | ---------------------- | ------------------------------------ |
 | `--int, --interactive` | Start in interactive mode            |
+| `--web`                | Launch the local web GUI (port 8787) |
 | `--config FILE`        | Load configuration from file         |
 | `--save NAME`          | Save current configuration with name |
 | `--help`               | Show help message                    |
@@ -498,6 +533,10 @@ GhostAP uses a modular architecture with separate modules for each feature:
 ```text
 GhostAP/
 ├── GhostAP.sh           # Main entry point
+├── gui/                 # Optional local web GUI (Python stdlib + static HTML/CSS/JS)
+│   ├── server.py        # Backend: API, log streaming, process supervision
+│   ├── run.sh           # Launcher (re-execs under sudo)
+│   └── static/          # Black & white front-end (index.html, style.css, app.js)
 └── src/
     ├── globals.sh       # Global variables and constants
     ├── utils.sh         # Logging, validation, cleanup functions

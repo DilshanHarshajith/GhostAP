@@ -111,6 +111,10 @@ declare -g CONFIG_FILE="${SETUP_DIR}/default.conf"
 declare -g SCAN_APS_ONLY=false
 declare -g SCAN_APS_DURATION=15
 
+# --web: launch the local web GUI instead of running an AP from the terminal.
+# Not a saved config setting.
+declare -g WEB_MODE=false
+
 # Connected-client monitor (see src/monitor.sh). These are runtime knobs,
 # not saved-config settings — they describe how the live client dashboard
 # behaves while the AP is running.

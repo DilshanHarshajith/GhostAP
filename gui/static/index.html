@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GhostAP</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◼</span>
+      <span class="brand-name">GhostAP</span>
+      <span class="brand-sub">Access Point Console</span>
+    </div>
+    <div class="topbar-right">
+      <div class="status" id="status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Idle</span>
+        <span id="status-meta" class="status-meta"></span>
+      </div>
+      <div class="actions">
+        <button id="btn-start" class="btn btn-primary">Start AP</button>
+        <button id="btn-stop" class="btn btn-danger" disabled>Stop</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="setups-bar">
+    <label for="setup-select">Setup</label>
+    <select id="setup-select" class="input"><option value="">— none —</option></select>
+    <button id="btn-load" class="btn">Load</button>
+    <button id="btn-save" class="btn">Save as…</button>
+    <button id="btn-delete" class="btn">Delete</button>
+    <span class="spacer"></span>
+    <span class="hint" id="toast"></span>
+  </div>
+
+  <main class="layout">
+    <section class="panel config-panel">
+      <div class="panel-head">
+        <h2>Configuration</h2>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <span class="label">Mode</span>
+          <div class="segmented">
+            <label><input type="radio" name="mode" value="wifi" checked /> WiFi AP</label>
+            <label><input type="radio" name="mode" value="ethernet" /> Ethernet AP</label>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="interface">Interface</label>
+            <select id="interface" class="input"><option value="">— select —</option></select>
+          </div>
+          <div class="field" id="source-wrap">
+            <label for="source-interface">Internet source (optional)</label>
+            <select id="source-interface" class="input"><option value="">— none —</option></select>
+          </div>
+        </div>
+
+        <fieldset class="group" id="wifi-group">
+          <legend>Network</legend>
+          <div class="grid">
+            <div class="field">
+              <label for="ssid">SSID</label>
+              <input id="ssid" class="input" value="GhostAP" />
+            </div>
+            <div class="field">
+              <label for="channel">Channel</label>
+              <input id="channel" class="input" value="6" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="security">Security</label>
+              <select id="security" class="input">
+                <option value="open">Open</option>
+                <option value="wpa2">WPA2</option>
+                <option value="wpa3">WPA3</option>
+              </select>
+            </div>
+            <div class="field" id="password-wrap" hidden>
+              <label for="password">Password</label>
+              <input id="password" class="input" type="password" autocomplete="new-password" />
+            </div>
+            <div class="field">
+              <label for="subnet">Subnet (3rd octet)</label>
+              <input id="subnet" class="input" value="10" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <label for="dns">DNS server</label>
+              <input id="dns" class="input" value="8.8.8.8" />
+            </div>
+            <div class="field">
+              <label for="mac">Clone MAC / BSSID (optional)</label>
+              <input id="mac" class="input" placeholder="aa:bb:cc:dd:ee:ff" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-clone">
+          <legend><label><input type="checkbox" id="clone" /> Clone an existing AP</label></legend>
+          <div class="group-body">
+            <div class="field">
+              <label for="clone-ssid">Target SSID (leave empty to scan first)</label>
+              <input id="clone-ssid" class="input" placeholder="TargetSSID" />
+            </div>
+            <p class="hint">Use the Scan tab to find a target, then click “Clone”.</p>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-internet">
+          <legend><label><input type="checkbox" id="internet" /> Internet sharing (NAT)</label></legend>
+          <div class="group-body">
+            <p class="hint">Choose an Internet source above, or leave it blank to auto-enable via <code>--internet</code>.</p>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-capture">
+          <legend><label><input type="checkbox" id="capture" /> Packet capture</label></legend>
+          <div class="group-body">
+            <div class="field">
+              <label for="capture-file">Output file (optional)</label>
+              <input id="capture-file" class="input" placeholder="capture.pcap" />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-spoof">
+          <legend><label><input type="checkbox" id="spoof" /> DNS spoofing</label></legend>
+          <div class="group-body">
+            <div class="field">
+              <label for="spoof-domains">Domains</label>
+              <input id="spoof-domains" class="input" placeholder="example.com=10.0.0.1|test.com" />
+            </div>
+            <div class="grid">
+              <div class="field">
+                <label for="spoof-target">Default target IP</label>
+                <input id="spoof-target" class="input" placeholder="192.168.x.1" />
+              </div>
+              <div class="field checkbox-field">
+                <label><input type="checkbox" id="block-doh" /> Block DNS-over-HTTPS</label>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-proxy">
+          <legend><label><input type="checkbox" id="proxy" /> Proxy routing</label></legend>
+          <div class="group-body">
+            <div class="grid">
+              <div class="field">
+                <label for="proxy-mode">Mode</label>
+                <select id="proxy-mode" class="input">
+                  <option value="TRANSPARENT_LOCAL">Local transparent (port 8080)</option>
+                  <option value="TRANSPARENT_UPSTREAM">Upstream via redsocks</option>
+                  <option value="REMOTE_DNAT">Remote DNAT</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="proxy-host">Host</label>
+                <input id="proxy-host" class="input" />
+              </div>
+              <div class="field">
+                <label for="proxy-port">Port</label>
+                <input id="proxy-port" class="input" value="8080" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label for="proxy-type">Type</label>
+                <select id="proxy-type" class="input">
+                  <option value="http">http</option>
+                  <option value="socks4">socks4</option>
+                  <option value="socks5">socks5</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="proxy-user">User</label>
+                <input id="proxy-user" class="input" />
+              </div>
+              <div class="field">
+                <label for="proxy-pass">Password</label>
+                <input id="proxy-pass" class="input" type="password" />
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-vpn">
+          <legend><label><input type="checkbox" id="vpn" /> VPN routing</label></legend>
+          <div class="group-body">
+            <div class="grid">
+              <div class="field">
+                <label for="vpn-config">Config file (.ovpn / .conf)</label>
+                <input id="vpn-config" class="input" />
+              </div>
+              <div class="field">
+                <label for="vpn-interface">Existing interface</label>
+                <input id="vpn-interface" class="input" placeholder="tun0 / wg0" />
+              </div>
+              <div class="field">
+                <label for="vpn-creds">Credentials (user:pass)</label>
+                <input id="vpn-creds" class="input" />
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="group feature" id="feature-captive">
+          <legend><label><input type="checkbox" id="captive" /> Captive portal</label></legend>
+          <div class="group-body">
+            <div class="grid">
+              <div class="field">
+                <label for="captive-port">Port</label>
+                <input id="captive-port" class="input" value="8880" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label for="captive-template">Custom template (optional)</label>
+                <input id="captive-template" class="input" />
+              </div>
+            </div>
+            <p class="hint">Cannot be combined with proxy routing or DNS spoofing.</p>
+          </div>
+        </fieldset>
+
+        <details class="cmd-preview">
+          <summary>Generated command</summary>
+          <pre id="cmd-preview"></pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel output-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="log">Live Log</button>
+        <button class="tab" data-tab="clients">Clients</button>
+        <button class="tab" data-tab="scan">Scan</button>
+      </div>
+
+      <div class="tab-body" id="tab-log">
+        <div class="tab-toolbar">
+          <button id="btn-clear-log" class="btn btn-small">Clear</button>
+          <label class="checkbox-field"><input type="checkbox" id="autoscroll" checked /> Auto-scroll</label>
+          <span class="spacer"></span>
+          <span class="hint" id="log-state">disconnected</span>
+        </div>
+        <pre id="log" class="log"></pre>
+      </div>
+
+      <div class="tab-body" id="tab-clients" hidden>
+        <div class="tab-toolbar">
+          <button id="btn-refresh-clients" class="btn btn-small">Refresh</button>
+          <span class="spacer"></span>
+          <span class="hint" id="clients-meta">—</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>MAC</th><th>IP</th><th>Hostname</th><th>Signal</th><th>Connected</th><th>RX / TX</th><th>Status</th></tr>
+          </thead>
+          <tbody id="clients-body">
+            <tr><td colspan="7" class="empty">No clients.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tab-body" id="tab-scan" hidden>
+        <div class="tab-toolbar">
+          <select id="scan-interface" class="input"></select>
+          <input id="scan-duration" class="input narrow" value="15" inputmode="numeric" />
+          <span class="hint">seconds</span>
+          <button id="btn-scan" class="btn btn-small">Scan</button>
+          <span class="spacer"></span>
+          <span class="hint" id="scan-meta">—</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>BSSID</th><th>SSID</th><th>CH</th><th>Security</th><th>Signal</th><th></th></tr>
+          </thead>
+          <tbody id="scan-body">
+            <tr><td colspan="6" class="empty">No scan run yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

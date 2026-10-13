@@ -42,6 +42,15 @@ main() {
     trap 'handle_signal SIGTERM' SIGTERM
         
     check_root
+
+    # --web launches the browser-based GUI and hands the process over to it.
+    # This skips the CLI/AP dependency checks: the GUI supervises GhostAP.sh
+    # as a child and will surface any missing dependency when an AP starts.
+    if [[ "${WEB_MODE}" == true ]]; then
+        run_web_gui
+        exit $?
+    fi
+
     check_dependencies
     
     log "GhostAP starting..."

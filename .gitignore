@@ -3,3 +3,7 @@
 Config
 Logs
 Setups
+
+# Python
+__pycache__/
+*.py[cod]

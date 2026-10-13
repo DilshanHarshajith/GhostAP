@@ -94,6 +94,8 @@ Usage: sudo $0 [OPTIONS]
 
 Basic Options:
   --int, --interactive          Start in interactive mode (default: auto-detect)
+  --web                         Launch the local browser-based web GUI and hand off.
+                                Serves on http://127.0.0.1:8787 (see gui/). Requires python3.
   --config FILE                 Load configuration from file
   --save NAME                   Save current configuration to file with specified name
   --help, -h                    Show this help message
@@ -169,6 +171,9 @@ Proxy Options:
   --proxy-pass PASS             Proxy password (optional)
 
 Examples:
+  # Launch the web GUI (open http://127.0.0.1:8787 in a browser)
+  sudo $0 --web
+
   # Basic open access point
   sudo $0 -i wlan0 -s "OpenAP" -c 6 --security open
 
@@ -252,4 +257,23 @@ show_connected_clients() {
     # Backward-compat alias — some external callers use this name.
     # Delegates to the full snapshot (radio + leases + ARP, signal-sorted).
     monitor_snapshot
+}
+
+# Launch the optional local web GUI (gui/server.py) in place of the CLI.
+# Reached via --web. We are already root (check_root ran), so the GUI can
+# start/stop the AP without a further sudo prompt. exec hands the terminal
+# over so Ctrl+C stops the GUI (and any AP it started).
+run_web_gui() {
+    local server="${SCRIPT_DIR}/gui/server.py"
+
+    if [[ ! -f "${server}" ]]; then
+        error "Web GUI not found at ${server}"
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        error "python3 is required for the web GUI"
+    fi
+
+    log "Starting GhostAP web GUI from ${server}"
+    exec python3 "${server}"
 }

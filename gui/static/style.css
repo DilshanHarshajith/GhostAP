@@ -1,0 +1,261 @@
+/* GhostAP GUI — strict black & white theme */
+
+:root {
+  --bg: #ffffff;
+  --fg: #000000;
+  --muted: #6b6b6b;
+  --line: #000000;
+  --line-soft: #d5d5d5;
+  --panel: #ffffff;
+  --invert-bg: #000000;
+  --invert-fg: #ffffff;
+  --shadow: 4px 4px 0 #000000;
+  --mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 2px solid var(--line);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand-mark { font-size: 16px; }
+.brand-name { font-weight: 700; letter-spacing: 3px; text-transform: uppercase; font-size: 18px; }
+.brand-sub { color: var(--muted); letter-spacing: 2px; text-transform: uppercase; font-size: 10px; }
+
+.topbar-right { display: flex; align-items: center; gap: 20px; }
+
+.status { display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+.status-dot { width: 10px; height: 10px; background: #fff; border: 2px solid #000; display: inline-block; }
+.status-dot.on { background: #000; }
+.status-dot.pending { background: repeating-linear-gradient(45deg, #000, #000 3px, #fff 3px, #fff 6px); }
+.status-meta { color: var(--muted); text-transform: none; letter-spacing: 0; }
+
+.actions { display: flex; gap: 8px; }
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  background: #fff;
+  color: #000;
+  border: 2px solid #000;
+  cursor: pointer;
+  transition: none;
+}
+.btn:hover:not(:disabled) { background: #000; color: #fff; }
+.btn:active:not(:disabled) { transform: translate(1px, 1px); }
+.btn:disabled { border-color: var(--line-soft); color: #a8a8a8; cursor: not-allowed; background: #fff; }
+.btn-primary { background: #000; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #fff; color: #000; }
+.btn-danger { border-style: dashed; }
+.btn-small { padding: 5px 10px; font-size: 11px; }
+
+/* ---------- Setups bar ---------- */
+
+.setups-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 2px solid var(--line);
+  background: #fafafa;
+  flex-wrap: wrap;
+}
+.setups-bar > label { text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+.spacer { flex: 1; }
+.hint { color: var(--muted); font-size: 11px; }
+.hint code { background: #eee; padding: 1px 4px; border: 1px solid var(--line-soft); }
+
+/* ---------- Layout ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(420px, 1.1fr);
+  gap: 20px;
+  padding: 20px;
+  align-items: start;
+}
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+.panel {
+  border: 2px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.panel-head {
+  padding: 10px 16px;
+  border-bottom: 2px solid var(--line);
+  background: #f2f2f2;
+}
+.panel-head h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 3px; }
+.panel-body { padding: 16px; }
+
+/* ---------- Forms ---------- */
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label, .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #333;
+}
+.input {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #000;
+  border: 2px solid var(--line);
+  width: 100%;
+}
+.input:focus { outline: 3px solid #000; outline-offset: -1px; }
+.input.narrow { width: 70px; }
+select.input { appearance: none; background-image: linear-gradient(45deg, transparent 50%, #000 50%), linear-gradient(135deg, #000 50%, transparent 50%); background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: 26px; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+.segmented { display: flex; gap: 0; border: 2px solid var(--line); width: fit-content; }
+.segmented label {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 11px;
+}
+.segmented label + label { border-left: 2px solid var(--line); }
+.segmented input { accent-color: #000; }
+
+.group {
+  border: 2px solid var(--line);
+  margin: 16px 0 0;
+  padding: 10px 12px 14px;
+}
+.group legend {
+  padding: 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 11px;
+}
+.group legend label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.group-body { display: flex; flex-direction: column; gap: 12px; }
+.group-body .grid { margin: 0; }
+fieldset.feature.off .group-body { display: none; }
+fieldset.feature.off { border-style: dashed; }
+
+.checkbox-field { justify-content: flex-end; }
+.checkbox-field label, .tab-toolbar label {
+  display: inline-flex; align-items: center; gap: 7px;
+  text-transform: uppercase; letter-spacing: 1px; font-size: 11px; cursor: pointer;
+}
+input[type="checkbox"], input[type="radio"] { accent-color: #000; width: 15px; height: 15px; }
+
+.cmd-preview { margin-top: 16px; border: 2px dashed var(--line); }
+.cmd-preview summary {
+  padding: 8px 12px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px;
+}
+.cmd-preview pre {
+  margin: 0; padding: 12px; border-top: 2px dashed var(--line);
+  white-space: pre-wrap; word-break: break-all; background: #fafafa; font-size: 11px;
+}
+
+/* ---------- Output tabs ---------- */
+
+.output-panel { position: sticky; top: 78px; }
+.tabs { display: flex; border-bottom: 2px solid var(--line); }
+.tab {
+  font-family: var(--mono);
+  padding: 10px 18px;
+  background: #f2f2f2;
+  color: #000;
+  border: none;
+  border-right: 2px solid var(--line);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+}
+.tab.active { background: #000; color: #fff; }
+.tab:hover:not(.active) { background: #e2e2e2; }
+
+.tab-body { display: flex; flex-direction: column; }
+.tab-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--line);
+  background: #fafafa;
+  flex-wrap: wrap;
+}
+.tab-toolbar .input { width: auto; padding: 6px 10px; }
+
+.log {
+  margin: 0;
+  padding: 12px 14px;
+  height: 62vh;
+  overflow: auto;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.log .l-err { color: #fff; font-weight: 700; }
+.log .l-gui { color: #bdbdbd; font-style: italic; }
+
+/* ---------- Tables ---------- */
+
+.table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.table th, .table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.table th {
+  text-transform: uppercase; letter-spacing: 1px; font-size: 10px;
+  border-bottom: 2px solid var(--line); background: #f2f2f2; position: sticky; top: 0;
+}
+.table tbody tr:hover { background: #f2f2f2; }
+.table .empty { color: var(--muted); text-align: center; padding: 24px; }
+.tab-body .table { display: block; max-height: 62vh; overflow: auto; }
+.tab-body .table thead, .tab-body .table tbody { display: table; width: 100%; table-layout: fixed; }
+.badge {
+  border: 1px solid #000; padding: 1px 6px; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.badge.on { background: #000; color: #fff; }
+
+.tag {
+  display: inline-block; border: 2px solid #000; padding: 4px 10px;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; background: #fff;
+}
+.tag:hover { background: #000; color: #fff; }

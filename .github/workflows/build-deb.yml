@@ -102,6 +102,12 @@ jobs:
           for f in src/*.sh; do
             install -Dm644 "$f" "$STAGE/usr/share/ghostap/src/$(basename "$f")"
           done
+          # Optional web GUI (--web): server + static front-end + launcher.
+          install -Dm755 gui/run.sh "$STAGE/usr/share/ghostap/gui/run.sh"
+          install -Dm644 gui/server.py "$STAGE/usr/share/ghostap/gui/server.py"
+          for f in gui/static/*; do
+            install -Dm644 "$f" "$STAGE/usr/share/ghostap/gui/static/$(basename "$f")"
+          done
           mkdir -p "$STAGE/var/lib/ghostap"
 
           SIZE_KB=$(du -sk "$STAGE" | cut -f1)

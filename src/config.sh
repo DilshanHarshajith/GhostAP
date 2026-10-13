@@ -253,6 +253,11 @@ parse_arguments() {
                     shift
                 fi
                 ;;
+            --web)
+                # Launch the local web GUI (gui/server.py) and hand off.
+                WEB_MODE=true
+                shift
+                ;;
             --scan-aps)
                 # Standalone AP survey: scan, print nearby APs, exit.
                 # No cloning, no AP setup. Accepts an optional duration
